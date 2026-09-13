@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"learngo/internal/content"
@@ -24,16 +27,47 @@ func main() {
 		log.Fatal(err)
 	}
 
-	addr := ":8080"
-	if p := os.Getenv("PORT"); p != "" {
-		addr = ":" + p
-	}
-
 	srv := &http.Server{
-		Addr:              addr,
+		Addr:              listenAddr(),
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-	log.Printf("LearnGO http://localhost%s", addr)
-	log.Fatal(srv.ListenAndServe())
+
+	errCh := make(chan error, 1)
+	go func() {
+		log.Printf("LearnGO listen %s", srv.Addr)
+		errCh <- srv.ListenAndServe()
+	}()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case err := <-errCh:
+		if err != nil && err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
+	case sig := <-sigCh:
+		log.Printf("stop signal %s", sig)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func listenAddr() string {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	host := os.Getenv("HOST")
+	if host == "" && os.Getenv("RENDER") != "" {
+		host = "0.0.0.0"
+	}
+	if host == "" {
+		return ":" + port
+	}
+	return host + ":" + port
 }

@@ -1,0 +1,18 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# Dashboard: New > Blueprint, connect this repo, apply this file.
+# Manual: New > Web Service, Language Go, then use the commands below.
+#
+# Build: CGO_ENABLED=0 go build -tags netgo -ldflags '-s -w' -o bin/learngo ./cmd
+# Start: ./bin/learngo
+
+services:
+  - type: web
+    name: learngo
+    runtime: go
+    plan: free
+    branch: master
+    autoDeploy: true
+    buildCommand: CGO_ENABLED=0 go build -tags netgo -ldflags '-s -w' -o bin/learngo ./cmd
+    startCommand: ./bin/learngo
+    healthCheckPath: /healthz

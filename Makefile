@@ -10,12 +10,13 @@ endif
 
 .DEFAULT_GOAL := help
 
-.PHONY: help run build tidy fmt vet test check clean
+.PHONY: help run build build-render tidy fmt vet test check clean
 
 help:
 	$(info LearnGO commands)
 	$(info   make run    Run the web app on PORT=$(PORT))
 	$(info   make build  Build $(BIN))
+	$(info   make build-render  Linux binary for Render)
 	$(info   make tidy   Download and tidy Go modules)
 	$(info   make fmt    Format Go source files)
 	$(info   make vet    Run go vet)
@@ -29,6 +30,9 @@ run:
 
 build:
 	$(GO) build -o $(BIN) $(PKG)
+
+build-render:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -tags netgo -ldflags '-s -w' -o $(BIN_DIR)/learngo $(PKG)
 
 tidy:
 	$(GO) mod tidy

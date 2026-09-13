@@ -3,6 +3,7 @@ package web
 import (
 	"html/template"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -42,6 +43,7 @@ func New(store *content.Store, root string) (http.Handler, error) {
 	s := &Server{store: store, tmpl: tmpl, mux: http.NewServeMux()}
 	static := http.FileServer(http.Dir(filepath.Join(root, "web", "static")))
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", static))
+	s.mux.HandleFunc("GET /healthz", s.health)
 	s.mux.HandleFunc("GET /{$}", s.redirectHome)
 	s.mux.HandleFunc("GET /en/{$}", s.home)
 	s.mux.HandleFunc("GET /ru/{$}", s.home)
@@ -52,6 +54,13 @@ func New(store *content.Store, root string) (http.Handler, error) {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
+}
+
+func (s *Server) health(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("ok\n"))
 }
 
 func (s *Server) redirectHome(w http.ResponseWriter, r *http.Request) {
@@ -166,6 +175,7 @@ func setLangCookie(w http.ResponseWriter, lang string) {
 		Path:     "/",
 		MaxAge:   365 * 24 * 3600,
 		HttpOnly: false,
+		Secure:   os.Getenv("RENDER") != "",
 		SameSite: http.SameSiteLaxMode,
 		Expires:  time.Now().Add(365 * 24 * time.Hour),
 	})

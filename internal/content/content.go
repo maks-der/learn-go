@@ -57,7 +57,14 @@ type Store struct {
 
 // FindRoot walks from the working directory and the executable
 // until it finds common/en and common/ru.
+// Set LEARNGO_ROOT to skip the search (used on hosts such as Render).
 func FindRoot() (string, error) {
+	if root := os.Getenv("LEARNGO_ROOT"); root != "" {
+		if isContentRoot(root) {
+			return root, nil
+		}
+		return "", fmt.Errorf("LEARNGO_ROOT is not a content root: %s", root)
+	}
 	seen := map[string]bool{}
 	var starts []string
 	if cwd, err := os.Getwd(); err == nil {

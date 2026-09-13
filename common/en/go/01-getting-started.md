@@ -100,7 +100,7 @@ go env GOROOT GOPATH GOMODCACHE
 
 ---
 
-## GOPATH vs Go modules (use modules)
+## Go modules (do not use GOPATH mode)
 
 Old Go projects used GOPATH mode. All source lived under `$GOPATH/src`. Import paths were directory paths under that tree. That model did not record versions of dependencies in the project.
 
@@ -109,6 +109,18 @@ Go modules are the current standard. A module is a set of packages with a `go.mo
 Always use modules. Run `go mod init` in the project root. Do not set `GO111MODULE=off`. Do not put new project source inside `GOPATH/src` for that reason.
 
 The module path is the import prefix. Example: `github.com/user/app`. Packages in the module use that prefix in import statements from other modules.
+
+```text
+go mod init example.com/hello
+```
+
+A new `go.mod` looks like this:
+
+```text
+module example.com/hello
+
+go 1.22.0
+```
 
 ### Questions
 
@@ -153,6 +165,13 @@ A package is a directory of Go files with the same `package` name. All files in 
 File names use letters, digits, and `_`. The compiler ignores files with names that start with `.` or `_`. The compiler ignores files with build tags that do not match. Files named `*_windows.go` apply to Windows. Files named `*_test.go` are test files.
 
 Do not put many unrelated packages in one directory. One directory is one package. Put commands in `cmd/toolname` when the module has more than one command. Put private code in `internal/` when other modules must not import it.
+
+```text
+example.com/app/
+  go.mod
+  cmd/app/main.go
+  internal/store/store.go
+```
 
 ### Questions
 
@@ -234,47 +253,13 @@ Typical sequence for a change:
 
 ---
 
-## `gofmt` / `gofumpt` and editor setup
+## Editor setup and official docs
 
-`gofmt` is the formatter in the Go toolchain. `go fmt` calls `gofmt`. `gofumpt` is a stricter formatter. `gofumpt` applies extra rules. Teams may use `gofumpt`. The official rule is still `gofmt`.
-
-Configure the editor to run format on save. Install the Go extension for Visual Studio Code or the Go plugin for GoLand. Set the format tool to `gofmt` or `goimports`. `goimports` formats the file and fixes import lists.
+Configure the editor to run format on save. Install the Go extension for Visual Studio Code or the Go plugin for GoLand. Set the format tool to `gofmt` or `goimports`. `gofmt` is the formatter in the Go toolchain. `go fmt` calls `gofmt`. `goimports` formats the file and fixes import lists.
 
 Enable `gopls`. `gopls` is the Go language server. `gopls` gives completion, find-definition, and diagnostics. Point the editor to the same `go` binary that the terminal uses.
 
-Do not mix tabs and spaces by hand. `gofmt` uses tabs for indentation. Align other columns with spaces when `gofmt` does that.
-
-### Questions
-
-#### Theoretical questions
-
-1. What is the difference between `gofmt` and `go fmt`?
-2. What extra work does `goimports` do?
-3. What is `gopls`?
-4. Why must format run on save?
-5. What is `gofumpt`?
-
-#### Easy practical tasks
-
-1. Run `gofmt -d file.go` on a file with extra spaces. Read the diff.
-2. Install the Go extension in your editor. Enable format on save. Save a badly formatted file. Confirm the format change.
-3. Run `goimports` on a file with an unused import. Confirm that the import is removed.
-4. Write the editor setting name that selects the format tool.
-
-#### Medium practical tasks
-
-1. Compare `gofmt` output and `gofumpt` output on the same file. List two differences if they exist.
-2. Break `gopls` on purpose (wrong `GOROOT`). Record the editor error. Fix the configuration.
-3. Add an `.editorconfig` that does not fight `gofmt` (tabs for `.go`). Document the settings.
-
-#### Advanced practical tasks
-
-1. Add a format check in a script: `gofmt -l .` must print no file names. Fail the script if a name appears.
-2. Configure `golangci-lint` with `gofmt` as a check. Run it on a small module. Record the output.
-
----
-
-## Official docs: go.dev/doc and Tour of Go
+Do not mix tabs and spaces by hand. `gofmt` uses tabs for indentation.
 
 The primary documentation is [https://go.dev/doc/](https://go.dev/doc/). It contains the specification, Effective Go, the tutorial, and release notes.
 
@@ -295,29 +280,29 @@ Use the language specification when you need exact rules. Use Effective Go when 
 
 #### Theoretical questions
 
-1. What is the Tour of Go?
-2. Where do you read package documentation for `net/http`?
-3. What command prints documentation in the terminal?
-4. When do you open the language specification instead of a tutorial?
-5. What is Effective Go?
+1. What extra work does `goimports` do compared with `gofmt`?
+2. What is `gopls`?
+3. What is the Tour of Go?
+4. Where do you read package documentation for `net/http`?
+5. When do you open the language specification instead of a tutorial?
 
 #### Easy practical tasks
 
-1. Complete the first two pages of the Tour of Go. Write one fact that you learned.
-2. Run `go doc fmt`. Write the package comment in one sentence.
-3. Open `pkg.go.dev` for `strings`. Find `strings.Builder`. Write the purpose of that type.
-4. Bookmark go.dev/doc, the tour, and pkg.go.dev.
+1. Install the Go extension in your editor. Enable format on save. Save a badly formatted file. Confirm the format change.
+2. Run `gofmt -d file.go` on a file with extra spaces. Read the diff.
+3. Complete the first two pages of the Tour of Go. Write one fact that you learned.
+4. Run `go doc fmt`. Write the package comment in one sentence.
 
 #### Medium practical tasks
 
 1. Complete all Tour of Go pages in the "Basics" section. Write five quiz questions for yourself from that section.
 2. Use `go doc -src fmt.Println`. Read the source. Write how `Println` calls `Fprintln`.
-3. Find the Go FAQ entry about nil. Write the question and the answer in short form.
+3. Add a format check in a script: `gofmt -l .` must print no file names. Fail the script if a name appears.
 
 #### Advanced practical tasks
 
 1. Complete the full Tour of Go. Make a list of topics that this handbook covers later. Map each tour page to a topic number.
-2. Read Effective Go "Formatting" and "Commentary". Change one of your files to match those rules. Record the changes.
+2. Configure `golangci-lint` with a `gofmt` check. Run it on a small module. Record the output.
 
 ---
 
@@ -346,7 +331,7 @@ These questions do not repeat the questions in the sections above. They cover th
 
 1. Write a small script (PowerShell or bash) that runs `go fmt`, `go vet`, and `go test` in sequence. Stop on the first failure.
 2. Clone a small public Go repository. Identify `go.mod`, the main package, and one library package. Run `go test ./...`.
-3. Document your editor + Go setup in ten steps so that another beginner can copy it.
+3. Document your editor and Go setup in ten steps so that another beginner can copy it.
 
 #### Advanced practical tasks
 

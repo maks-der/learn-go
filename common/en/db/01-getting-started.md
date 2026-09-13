@@ -270,11 +270,11 @@ Search       : inverted index, ranked hits
 
 ---
 
-## Installing a local DBMS (or using Docker)
+## Installing a local DBMS and connecting with a CLI or GUI
 
 Install a local DBMS so that you can practice. A local install keeps data on your machine. You do not need a cloud account for this path.
 
-Two common methods exist:
+Two common install methods exist:
 
 1. Install the official package for your operating system.
 2. Run a container with Docker.
@@ -294,40 +294,6 @@ Change the image and the variables when you use a different product. Read the of
 After the install, verify the process. On the host, confirm that the port listens. In Docker, run `docker ps` and confirm that the container is up.
 
 Create a practice database. Use a name such as `learn`. Do not use the system database for your tables. System databases are for the DBMS itself.
-
-If the service does not start, read the server log. Common causes: the port is in use, the data directory has the wrong owner, or the password environment variable is missing.
-
-### Questions
-
-#### Theoretical questions
-
-1. Why do you install a local DBMS for this path?
-2. What are the two common install methods in this section?
-3. Why do you persist a Docker volume for database data?
-4. Why must you not practice in a system database?
-5. What is a common cause when the DBMS does not start?
-
-#### Easy practical tasks
-
-1. Install a local relational DBMS or start a container. Write the product name and version.
-2. Confirm that the server process or container is running. Save the command and the output.
-3. Create a database named `learn`. Record the statement or the GUI action.
-4. Write the host, port, user, and database name that you will use. Do not publish a real production password.
-
-#### Medium practical tasks
-
-1. Stop the DBMS and start it again. Confirm that the `learn` database still exists.
-2. Change the host port mapping in Docker or the listen port in a config file. Connect on the new port. Then restore the default.
-3. Read the official Docker image page for your DBMS. List the required environment variables.
-
-#### Advanced practical tasks
-
-1. Run two versions of the same DBMS on different ports. Write how you keep the data directories separate.
-2. Write a compose file with one DBMS service, a volume, and a health check. Start it and connect.
-
----
-
-## Connecting with a GUI client and a CLI
 
 A client connects with a connection string or with separate fields. Typical fields:
 
@@ -359,34 +325,34 @@ In the GUI, create a connection with the same host, port, user, and database. Ru
 
 Do not commit passwords into a repository. Use the client password prompt or a local config file that you do not share. Do not expose the DBMS port on a public network for a learning install.
 
-If the client fails, read the error. Typical causes: wrong port, wrong user, wrong database name, server not running, or a firewall block.
+If the client fails, read the error. Typical causes: wrong port, wrong user, wrong database name, server not running, or a firewall block. If the service does not start, read the server log. Common causes: the port is in use, the data directory has the wrong owner, or the password environment variable is missing.
 
 ### Questions
 
 #### Theoretical questions
 
-1. Which fields does a client need to connect to a server DBMS?
-2. Why must you learn the CLI and not only a GUI?
-3. What does `SELECT 1` prove?
-4. Why must you not put a password in a shared repository?
-5. Name three causes of a failed connection.
+1. Why do you install a local DBMS for this path?
+2. What are the two common install methods in this section?
+3. Which fields does a client need to connect to a server DBMS?
+4. What does `SELECT 1` prove?
+5. Why must you not put a password in a shared repository?
 
 #### Easy practical tasks
 
-1. Connect with the CLI. Run `SELECT 1`. Save the full session output.
-2. Connect with a GUI client. Run `SELECT 1`. Capture a screenshot for your notes.
-3. List the databases that the client shows. Mark the practice database.
-4. Write your connection fields in a private note: host, port, user, database. Omit the password or use a placeholder.
+1. Install a local relational DBMS or start a container. Write the product name and version.
+2. Connect with the CLI. Run `SELECT 1`. Save the full session output.
+3. Create a database named `learn`. Record the statement or the GUI action.
+4. Write the host, port, user, and database name that you will use. Do not publish a real production password.
 
 #### Medium practical tasks
 
-1. Fail a connection on purpose (wrong port). Record the error. Fix the port and connect.
-2. Run `SELECT current_user` or the vendor equivalent. Write who you are in the session.
+1. Stop the DBMS and start it again. Confirm that the `learn` database still exists. Connect again and run `SELECT 1`.
+2. Fail a connection on purpose (wrong port). Record the error. Fix the port and connect.
 3. Compare the CLI result and the GUI result for `SELECT 1`. Write one advantage of each client.
 
 #### Advanced practical tasks
 
-1. Connect through a connection URI if your client supports it. Show the URI with a password placeholder. Connect successfully.
+1. Write a compose file with one DBMS service, a volume, and a health check. Start it and connect with CLI and GUI.
 2. Create a read-only user if the DBMS allows it. Connect as that user. Try `SELECT` and `CREATE TABLE`. Record which statement fails.
 
 ---

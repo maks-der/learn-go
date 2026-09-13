@@ -2,15 +2,15 @@
 
 ## Description
 
-PostgreSQL is an open-source object-relational database system. This topic shows what PostgreSQL is, why the major version matters, and how you install a server. You also learn clusters, databases, schemas, roles, and how you connect.
+PostgreSQL is an open-source object-relational database system. This topic shows what PostgreSQL is, why the major version matters, and how you install a server. You also learn clusters, databases, schemas, roles, and how a client connects.
 
-Learn common database ideas first (`db.topics.md`). Then complete this topic. Complete this topic before you study connections, SQL, and types.
+Learn common database ideas first (`db.topics.md`). Then complete this topic. Complete this topic before you study types, tables, and SQL.
 
-Use one term for each concept. A cluster is one data directory with one running server. A database lives in a cluster. A schema groups objects inside a database. A role is a login name or a group name. This handbook targets PostgreSQL 16 and PostgreSQL 17.
+Use one term for each concept. A cluster is one data directory with one running server. A database lives in a cluster. A schema groups objects inside a database. A role is a login name or a group name. `postgresql.conf` sets server parameters. `pg_hba.conf` sets who may connect. `search_path` is the list of schemas that unqualified names use. This handbook targets PostgreSQL 16 and PostgreSQL 17.
 
 ---
 
-## What PostgreSQL is (object-relational, open source)
+## What PostgreSQL is
 
 PostgreSQL is a relational database. You store data in tables. You query data with SQL. PostgreSQL is also object-relational. You can define types, operators, and functions. Tables can inherit columns from other tables. Most new work uses normal tables, types, and constraints. Do not treat inheritance as the default design.
 
@@ -52,13 +52,13 @@ PostgreSQL is not a document-only store. You can store JSON. Tables, types, and 
 
 ---
 
-## Versions and why the major version matters
+## Major versions
 
 PostgreSQL uses a major.minor version number. Examples: `16.15` and `17.11`. The first number is the major version. The rest is the minor version.
 
 A minor release fixes defects and security problems. You can apply a minor release without a dump and restore of the data directory. Stop the server. Install the new binaries. Start the server.
 
-A major release can change catalogs, on-disk format, and SQL behavior. You cannot point a PostgreSQL 17 binary at a PostgreSQL 16 data directory. You must upgrade with `pg_upgrade`, dump and restore, or logical replication. Topic 16 covers upgrade methods.
+A major release can change catalogs, on-disk format, and SQL behavior. You cannot point a PostgreSQL 17 binary at a PostgreSQL 16 data directory. You must upgrade with `pg_upgrade`, dump and restore, or logical replication. Topic 11 covers physical backup. Topic 14 covers upgrade practice.
 
 The major version controls which features you have. Documentation URLs include the major version. Example: [https://www.postgresql.org/docs/17/](https://www.postgresql.org/docs/17/). The word `current` in the docs URL points to the newest stable major version. That major version can be newer than 17.
 
@@ -128,7 +128,15 @@ The image runs `initdb` on the first start when the data volume is empty. Data l
 
 After install, confirm that the server listens. On a host install, the service name is often `postgresql` or `postgresql-17`. In Docker, use `docker logs pg17` and look for "ready to accept connections".
 
-Do not expose port `5432` to the public internet. Topic 21 covers production network rules.
+`psql` is the official terminal client. It ships with the PostgreSQL client package. Connect with host, port, user, and database:
+
+```text
+psql -h localhost -p 5432 -U postgres -d postgres
+```
+
+A newer `psql` can connect to an older server for many tasks. A much older `psql` can miss new SQL. Match client and server major versions when you can.
+
+Do not expose port `5432` to the public internet. Topic 14 covers production network rules.
 
 ### Questions
 
@@ -145,7 +153,7 @@ Do not expose port `5432` to the public internet. Topic 21 covers production net
 1. Install PostgreSQL 16 or 17, or start `postgres:17` in Docker. Record the method and the major version.
 2. Run `docker pull postgres:17` or open the installer download page. Write the exact image tag or installer file name.
 3. List the three environment variables from this section and the default of each variable when the image sets a default.
-4. Draw the path from your terminal to the server: client host, port, container or service name.
+4. Connect with `psql` to the default `postgres` database. Run `SELECT 1;`. Disconnect with `\q`.
 
 #### Medium practical tasks
 
@@ -160,73 +168,13 @@ Do not expose port `5432` to the public internet. Topic 21 covers production net
 
 ---
 
-## `psql` and a GUI (`pgAdmin`, DBeaver, DataGrip)
-
-`psql` is the official terminal client. It ships with the PostgreSQL client package. Use `psql` for scripts, `\copy`, and meta-commands. Topic 2 covers meta-commands in detail.
-
-Connect with host, port, user, and database:
-
-```text
-psql -h localhost -p 5432 -U postgres -d postgres
-```
-
-Set `PGPASSWORD` only for short tests. Prefer a `.pgpass` file or a secret manager. Do not put the password in a shared script.
-
-A GUI helps you browse trees of databases and tables. Common tools:
-
-- **pgAdmin** — official web GUI
-- **DBeaver** — free multi-database GUI
-- **DataGrip** — commercial IDE
-
-The GUI still sends SQL to the same server. Learn `psql` even if you use a GUI. Error text, `EXPLAIN`, and scripts are easier in `psql`.
-
-`psql` reads `~/.psqlrc` on start (or `%APPDATA%\postgresql\psqlrc.conf` on Windows). You can set prompts and defaults there. Do not hide errors in that file.
-
-Check the client version:
-
-```text
-psql --version
-```
-
-A newer `psql` can connect to an older server for many tasks. A much older `psql` can miss new SQL. Match client and server major versions when you can.
-
-### Questions
-
-#### Theoretical questions
-
-1. What is `psql`?
-2. Why must you still learn `psql` when you use a GUI?
-3. Name three GUI tools from this section.
-4. Why is a password in a shared script a problem?
-5. Why match the `psql` major version with the server major version?
-
-#### Easy practical tasks
-
-1. Run `psql --version`. Save the full output.
-2. Connect with `psql` to the default `postgres` database. Run `SELECT 1;`. Disconnect with `\q`.
-3. Open pgAdmin, DBeaver, or DataGrip. Create a connection to the same server. Run `SELECT 1`.
-4. Write the `psql` command line that sets host, port, user, and database.
-
-#### Medium practical tasks
-
-1. Use `psql -c "SELECT current_user;"` without an interactive session. Save the output.
-2. Compare the object tree in a GUI with `\l` and `\dt` in `psql`. Write three objects that both views show.
-3. Create a `.pgpass` file (or the Windows `pgpass.conf`). Connect without a password prompt. Document the file location and the file mode.
-
-#### Advanced practical tasks
-
-1. Write a `psql` script file that runs two `SELECT` statements. Run it with `psql -f`. Show the output.
-2. Configure SSL or a non-default port in both `psql` and one GUI. Record every connection field that you set.
-
----
-
-## Clusters, databases, schemas, roles
+## Clusters, databases, schemas, and roles
 
 A **cluster** is one data directory initialized by `initdb`. One cluster has one running server. One server can contain many databases.
 
 A **database** is a named catalog inside the cluster. Objects in one database are not visible in another database on the same cluster. You connect to one database at a time.
 
-A **schema** is a namespace inside a database. Tables, views, and functions have a schema name. The default schema for new objects is often `public`. Topic 2 covers `search_path`.
+A **schema** is a namespace inside a database. Tables, views, and functions have a schema name. The default schema for new objects is often `public`.
 
 A **role** is an account in the cluster. A role can log in when it has `LOGIN`. A role without `LOGIN` is a group. Older text says "user" for a login role. PostgreSQL stores both as roles. `CREATE USER` is `CREATE ROLE` with `LOGIN`.
 
@@ -238,7 +186,15 @@ System databases after `initdb`:
 
 System schemas include `pg_catalog` (system catalogs) and `information_schema` (SQL-standard views). Do not put application tables in `pg_catalog`.
 
-The hierarchy is: cluster → database → schema → table. A role belongs to the cluster. Privileges apply to objects inside a database. Topic 12 covers `GRANT` in detail.
+The hierarchy is: cluster → database → schema → table. A role belongs to the cluster. Privileges apply to objects inside a database. Topic 8 covers `GRANT` in detail.
+
+`createdb` and `createuser` are client programs. They send SQL to the server. You can run the same work in `psql`:
+
+```sql
+CREATE DATABASE shop;
+CREATE ROLE shop_app LOGIN PASSWORD 'secret';
+GRANT CONNECT ON DATABASE shop TO shop_app;
+```
 
 ### Questions
 
@@ -255,13 +211,13 @@ The hierarchy is: cluster → database → schema → table. A role belongs to t
 1. Draw the hierarchy cluster → database → schema → table. Add `public` and one application table.
 2. Write one sentence each for `postgres`, `template0`, and `template1`.
 3. List three object types that live in a schema.
-4. Explain in four sentences why a role is a cluster object and a table is a database object.
+4. Create a database with `createdb` or `CREATE DATABASE`. List databases and find the new name.
 
 #### Medium practical tasks
 
-1. After you can connect, run queries that list databases, schemas, and roles (topic 2 shows the commands). Save the three lists.
-2. Create a second database. Connect to it. Confirm that a table from the first database is not in `\dt`.
-3. Create a schema `app`. Create a table `app.items`. Write the qualified name of the table.
+1. Create a second database. Connect to it. Confirm that a table from the first database is not in `\dt`.
+2. Create a schema `app`. Create a table `app.items`. Write the qualified name of the table.
+3. Create a login role. Grant `CONNECT`. Connect as that role. Run `SELECT current_user, current_database();`.
 
 #### Advanced practical tasks
 
@@ -270,17 +226,40 @@ The hierarchy is: cluster → database → schema → table. A role belongs to t
 
 ---
 
-## `createdb`, `createuser`, connection URIs
+## Connection URIs, `pg_hba.conf`, and `postgresql.conf` (high-level)
 
-`createdb` and `createuser` are client programs. They send SQL to the server. You can run the same work in `psql`:
+`postgresql.conf` is the main server configuration file. It lives in the data directory by default. It sets listen address, port, memory, logging, and many other parameters. Example lines:
 
-```sql
-CREATE DATABASE shop;
-CREATE ROLE shop_app LOGIN PASSWORD 'secret';
-GRANT CONNECT ON DATABASE shop TO shop_app;
+```text
+listen_addresses = 'localhost'
+port = 5432
+max_connections = 100
 ```
 
-`createdb shop` is the same idea as `CREATE DATABASE shop`. `createuser shop_app` is the same idea as `CREATE ROLE shop_app LOGIN`. Use SQL when you need full options. Use the programs for short shell scripts.
+You can also put overrides in `postgresql.auto.conf`. `ALTER SYSTEM` writes that file. Do not edit `postgresql.auto.conf` by hand.
+
+`pg_hba.conf` is the host-based authentication file. Each line is a rule. The server uses the first matching rule. A rule has connection type, database, role, client address, and method.
+
+Example rules (do not copy them to production without a review):
+
+```text
+# TYPE  DATABASE  USER  ADDRESS      METHOD
+local   all       all                scram-sha-256
+host    all       all   127.0.0.1/32 scram-sha-256
+host    all       all   ::1/128      scram-sha-256
+```
+
+Common methods:
+
+- `scram-sha-256` — password with SCRAM (default password method in current versions)
+- `md5` — older password method; avoid for new work
+- `trust` — no password; use only on a private local test
+- `peer` — local socket; the OS user name must match the role
+- `reject` — deny the match
+
+`postgresql.conf` answers "how the server runs". `pg_hba.conf` answers "who may connect". A wrong listen address blocks the network. A wrong `pg_hba.conf` rule rejects the login after the TCP connect.
+
+Reload many settings with `SELECT pg_reload_conf();` or `pg_ctl reload`. Some parameters need a restart. The docs mark each parameter as `SIGHUP` or postmaster.
 
 A connection URI (also called a connection URL) is one string:
 
@@ -296,109 +275,183 @@ URI parts:
 - database name
 - optional query parameters (`sslmode`, `connect_timeout`)
 
-Key-value form is also valid:
-
-```text
-postgresql://?host=localhost&port=5432&dbname=shop&user=shop_app
-```
-
 `psql` accepts a URI:
 
 ```text
 psql "postgresql://shop_app@localhost:5432/shop"
 ```
 
-Libpq also reads environment variables: `PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE`. Topic 17 covers client parameters in more detail.
+Libpq also reads environment variables: `PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE`. Topic 12 covers client parameters in more detail.
 
-Do not commit a URI that contains a password. Use a secret store or `.pgpass`.
+Do not set `listen_addresses = '*'` and `trust` together. Do not commit a URI that contains a password.
 
 ### Questions
 
 #### Theoretical questions
 
-1. What SQL statement does `createdb` send?
-2. What SQL statement does `createuser` send?
-3. Name the parts of `postgresql://user@host:5432/dbname`.
-4. What environment variables set host, port, user, and database?
-5. Why must a URI with a password stay out of git?
+1. Which settings belong in `postgresql.conf`?
+2. Which rules belong in `pg_hba.conf`?
+3. What does the server do when two `pg_hba.conf` rules match?
+4. Name the parts of `postgresql://user@host:5432/dbname`.
+5. Which file does `ALTER SYSTEM` change?
 
 #### Easy practical tasks
 
-1. Create a database with `createdb` or `CREATE DATABASE`. List databases and find the new name.
-2. Create a login role with `createuser` or `CREATE ROLE`. List roles and find the new name.
+1. Find `postgresql.conf` and `pg_hba.conf` on your install or in the Docker data volume. Write both full paths.
+2. In `postgresql.conf`, find `port` and `listen_addresses`. Write the values.
 3. Write a connection URI for host `127.0.0.1`, port `5432`, database `shop`, user `shop_app`. Do not include a real production password.
-4. Connect with `psql` and that URI (password prompt is acceptable).
+4. Make a two-column table: "File" and "Question it answers". Add one row per file.
 
 #### Medium practical tasks
 
-1. Create a database and a role. Grant `CONNECT`. Connect as that role. Run `SELECT current_user, current_database();`.
+1. Change a reloadable parameter (example: `log_min_duration_statement`). Reload. Confirm with `SHOW`. Restore the old value.
 2. Connect once with a URI and once with `-h -p -U -d`. Write a table of equivalent fields.
-3. Set `PGHOST`, `PGPORT`, `PGUSER`, and `PGDATABASE` in your shell. Run `psql` with no extra flags. Then unset the variables.
+3. Read the official docs for `pg_hba.conf`. Write the meaning of `local` versus `host`.
 
 #### Advanced practical tasks
 
-1. Read the libpq URI docs. Add `sslmode=prefer` and `connect_timeout=5` to a URI. Show a successful connection.
-2. Write a small shell script that creates a database and a role from arguments. The script must not echo the password.
+1. Create a role that must use `scram-sha-256` from `127.0.0.1`. Prove that a wrong password fails. Record the client error. Do not write an attack procedure.
+2. Find three parameters that need a restart. Write their names and why a reload is not enough (from the docs).
 
 ---
 
-## Official docs: postgresql.org/docs
+## `psql` meta-commands: `\l`, `\c`, `\dt`, `\d`, `\dn`, `\du`
 
-The primary documentation is [https://www.postgresql.org/docs/](https://www.postgresql.org/docs/). Open the major version that matches your server. This path uses 16 and 17:
+Meta-commands start with a backslash. They are `psql` commands. The server does not receive the backslash line as SQL. `psql` sends SQL for you.
 
-- [https://www.postgresql.org/docs/16/](https://www.postgresql.org/docs/16/)
-- [https://www.postgresql.org/docs/17/](https://www.postgresql.org/docs/17/)
-- [https://www.postgresql.org/docs/current/](https://www.postgresql.org/docs/current/) (newest stable major)
+| Command | Purpose |
+| --- | --- |
+| `\l` | list databases |
+| `\c dbname` | connect to another database |
+| `\dt` | list tables in the current `search_path` |
+| `\d name` | describe a table or other object |
+| `\dn` | list schemas |
+| `\du` | list roles |
 
-The official tutorial is [https://www.postgresql.org/docs/current/tutorial.html](https://www.postgresql.org/docs/current/tutorial.html). Complete the tutorial on your 16 or 17 server.
+Useful variants:
 
-Useful books inside the docs:
+- `\l+` — databases with size and comment
+- `\dt *.*` — tables in all schemas
+- `\dt schema.*` — tables in one schema
+- `\d+ name` — extra detail (indexes, size comments)
+- `\du+` — roles with description
+- `\x` — toggle expanded display
+- `\q` — quit
+- `\conninfo` — show the current connection
+- `\h CREATE TABLE` — SQL syntax help
+- `\?` — `psql` meta-command help
 
-- Tutorial — first SQL and `psql`
-- SQL Language — statements and types
-- Server Administration — install, config, backup
-- Reference — exact syntax for each command
-
-The wiki is [https://wiki.postgresql.org/](https://wiki.postgresql.org/). The wiki has tips. The official docs win when the two sources disagree.
-
-`psql` can open help for a SQL command:
+Examples:
 
 ```text
-\h CREATE TABLE
-\?
+\l
+\c learn
+\dn
+\dt
+\d public.items
+\du
 ```
 
-`\h` shows SQL syntax. `\?` shows `psql` meta-commands.
+`\c` changes the database. You cannot change database with a SQL `USE` command. PostgreSQL has no `USE`. You reconnect.
 
-Use the reference page when you need exact syntax. Use the tutorial when you learn the first time. Use release notes when a major upgrade changes behavior.
+`\dt` without a pattern hides tables that are not on `search_path`. A table in schema `app` does not appear until you set the path or you run `\dt app.*`.
+
+`\d` without a name lists more object types than `\dt`. Prefer `\dt` when you want tables only.
+
+These commands help you confirm that you are on the correct database and that your role can see the objects.
 
 ### Questions
 
 #### Theoretical questions
 
-1. Why must the docs URL include the major version?
-2. What is the official tutorial URL pattern?
-3. When do you trust the official docs over the wiki?
-4. What does `\h CREATE TABLE` show?
-5. What does `\?` show?
+1. Is `\l` SQL? Where does it run?
+2. How do you change database in PostgreSQL?
+3. Why can `\dt` hide a table that exists?
+4. What does `\d tablename` show?
+5. What does `\du` list?
 
 #### Easy practical tasks
 
-1. Open the 17 tutorial. Complete the first page. Write one fact that you learned.
-2. Open the reference page for `SELECT`. Write the purpose of the `FROM` clause in one sentence.
-3. Run `\h CREATE DATABASE` in `psql`. Write the required argument.
-4. Bookmark docs for 16, 17, and `current`.
+1. Run `\l`, `\dn`, `\dt`, and `\du`. Save each output to a text file.
+2. Use `\c` to switch between `postgres` and another database. Run `\conninfo` after each switch.
+3. Create a table `demo_meta (id int)`. Run `\dt` and `\d demo_meta`.
+4. Run `\?` and find `\l`. Write the help line.
 
 #### Medium practical tasks
 
-1. Find the "Conventions" page in the docs. Write how the docs mark optional syntax.
-2. Open `version()` function reference. Write the return type.
-3. Compare one reference page in 16 and 17 (example: `CREATE INDEX`). Write one difference or write that the page is the same.
+1. Create a table in a non-`public` schema. Show that `\dt` misses it. Show that `\dt schema.*` finds it.
+2. Compare `\d` and `\d+` on the same table. List three extra lines from `\d+`.
+3. Use `\l+` and write the size of each database on your cluster.
 
 #### Advanced practical tasks
 
-1. Map this handbook topic to official doc chapters. List chapter titles for install, `psql`, and `CREATE DATABASE`.
-2. Read "Bug Reporting Guidelines" in the docs. Write a five-line template for a reproducible report.
+1. Run `psql -E` (echo hidden SQL). Run `\dt`. Copy the SQL that `psql` sends. Run that SQL by hand.
+2. Write a one-page `psql` cheat sheet with ten meta-commands. Include the six from this section and four more from `\?`.
+
+---
+
+## `search_path` and the `public` schema
+
+`search_path` is a list of schemas. PostgreSQL uses this list to find unqualified names. An unqualified name is `items`. A qualified name is `app.items`.
+
+The default `search_path` is `"$user", public`. `"$user"` means a schema with the same name as the current role. If that schema does not exist, PostgreSQL skips it. Then it uses `public`.
+
+Show the path:
+
+```sql
+SHOW search_path;
+SELECT current_schemas(true);
+```
+
+`current_schemas(true)` includes implicit schemas such as `pg_catalog`. System functions resolve even when you do not write `pg_catalog`.
+
+Set the path for the session:
+
+```sql
+SET search_path TO app, public;
+```
+
+Set a default for a role:
+
+```sql
+ALTER ROLE shop_app SET search_path TO app, public;
+```
+
+New objects go to the first schema in `search_path` that exists. If you omit a schema in `CREATE TABLE items`, PostgreSQL creates `public.items` when `public` is the first existing schema.
+
+The `public` schema exists in new databases. In PostgreSQL 15 and later, the `PUBLIC` role does not have `CREATE` on `public` by default. A normal login role needs `GRANT CREATE ON SCHEMA public` or a private schema. PostgreSQL 16 and 17 keep that safer default.
+
+Prefer an application schema (`app` or `shop`) for new work. Qualify names in scripts when two schemas can hold the same object name.
+
+Do not put application tables in `pg_catalog`. Do not rely on `public` `CREATE` for every role. Do not leave two tables with the same name on `search_path` without a plan. The first match wins.
+
+### Questions
+
+#### Theoretical questions
+
+1. What is an unqualified name?
+2. What does `"$user"` mean in `search_path`?
+3. Where does `CREATE TABLE items` put the table?
+4. Does `PUBLIC` have `CREATE` on `public` in PostgreSQL 16 and 17 by default?
+5. What does `current_schemas(true)` add that `SHOW search_path` may hide?
+
+#### Easy practical tasks
+
+1. Run `SHOW search_path;` and `SELECT current_schemas(true);`. Save both results.
+2. Create schema `app`. `SET search_path TO app, public;`. Create table `items`. Confirm the schema with `\d app.items`.
+3. Write a qualified name and an unqualified name for the same table.
+4. Grant `USAGE` on `app` to a login role. Connect as that role. Try `SELECT` from `app.items` after you grant table rights.
+
+#### Medium practical tasks
+
+1. Create the same table name in `public` and in `app`. Change `search_path`. Show which table `SELECT * FROM items` reads.
+2. `ALTER ROLE` a practice role so that `search_path` is `app, public`. Reconnect as that role. Confirm with `SHOW`.
+3. As a non-superuser, try `CREATE TABLE` in `public` without extra grants. Record the error. Then create in `app`.
+
+#### Advanced practical tasks
+
+1. Read the 16 or 17 docs on `search_path` and schema privileges. Write a four-step policy for a new database that does not use `public` for app tables.
+2. Find which objects ignore `search_path` (example: some system catalogs). Write two examples from the docs.
 
 ---
 
@@ -412,14 +465,14 @@ These questions do not repeat the questions in the sections above. They cover th
 
 1. Describe the path from an empty machine to `SELECT 1` in `psql`. Name install, start, and connect.
 2. Why is a cluster not the same object as a database?
-3. How do `createdb` and a connection URI work together in a new project?
+3. How do a connection URI and `pg_hba.conf` work together when a login fails?
 4. What risk do you take when `docs/current` and your server major version are not the same?
 5. A teammate wants to store only JSON and skip tables. Which facts from this topic do you use in the reply?
 
 #### Easy practical tasks
 
 1. Start PostgreSQL 16 or 17. Connect with `psql`. Run `SELECT version();` and `SELECT current_database();`. Save both results.
-2. Write a one-page cheat sheet: cluster, database, schema, role, `psql`, URI, major versus minor.
+2. Write a one-page cheat sheet: cluster, database, schema, role, `psql` meta-commands, URI, `search_path`, major versus minor.
 3. Create a database `learn` and a login role `learn_app`. Connect as `learn_app` to `learn` if privileges allow, or document the extra `GRANT` that you need.
 4. Open the official download page and the Docker Hub `postgres` page. Write one install command for each method.
 
@@ -427,7 +480,7 @@ These questions do not repeat the questions in the sections above. They cover th
 
 1. Write a short script (PowerShell or bash) that waits until port `5432` accepts connections, then runs `psql -c "SELECT 1"`.
 2. Create two databases and two roles. Draw who can connect to what. Test each pair with `psql`.
-3. Document your install in ten steps so that another beginner can copy it. Include version numbers.
+3. Document your install in ten steps so that another beginner can copy it. Include version numbers and the paths of `postgresql.conf` and `pg_hba.conf`.
 
 #### Advanced practical tasks
 

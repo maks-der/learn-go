@@ -2,11 +2,11 @@
 
 ## Description
 
-This topic shows core SQL in PostgreSQL 16 and PostgreSQL 17. You write `SELECT`, `INSERT`, `UPDATE`, and `DELETE`. You learn type output, implicit casts, and `RETURNING`. You also learn `LIMIT`, `OFFSET`, `FETCH`, `LIKE`, `ILIKE`, and dollar-quoting.
+This topic shows core SQL in PostgreSQL 16 and PostgreSQL 17. You write `SELECT`, `INSERT`, `UPDATE`, and `DELETE`. You learn `RETURNING`, `ILIKE`, and dollar-quoting. You also learn joins, `WITH`, recursive queries, `LEFT JOIN LATERAL`, and `DISTINCT ON`.
 
-Complete topics 1 and 2 first. You need a connection and a schema where you can create tables. Complete this topic before you study types in depth.
+Complete topics 1 and 2 first. You need a connection and tables with keys. Complete this topic before you study functions, JSON, and indexes.
 
-Use one term for each concept. A statement is one SQL command. A cast changes a value from one type to another type. An implicit cast is a cast that you do not write. Dollar-quoting is a way to write a string without quote escaping.
+Use one term for each concept. A statement is one SQL command. `RETURNING` sends result rows from a write. Dollar-quoting is a way to write a string without quote escaping. A join combines rows from two tables. A CTE is a named subquery in a `WITH` clause. A lateral join lets the right side use columns from the left side. `DISTINCT ON` keeps the first row of each group in the current sort order.
 
 ---
 
@@ -61,7 +61,7 @@ WHERE id = 3;
 Rules:
 
 - `WHERE` limits `UPDATE` and `DELETE`. An `UPDATE` without `WHERE` changes every row. A `DELETE` without `WHERE` removes every row.
-- `INSERT` must satisfy constraints. Topic 5 covers constraints.
+- `INSERT` must satisfy constraints.
 - `SELECT` without `FROM` is valid. Example: `SELECT 1 + 1;`.
 - PostgreSQL uses `$1` style parameters in client APIs. In `psql` you write literals. Do not concatenate user text into SQL. Use parameters in programs.
 
@@ -72,7 +72,15 @@ INSERT INTO items (id, name, qty)
 SELECT id + 100, name, qty FROM items WHERE qty < 10;
 ```
 
-`UPDATE` can use `FROM` to join other tables. `DELETE` can use `USING`. Learn those forms after you learn joins in topic 6.
+`UPDATE` can use `FROM` to join other tables. `DELETE` can use `USING`. Learn those forms after you learn joins in this topic.
+
+`LIMIT` and `OFFSET` cap a result. `OFFSET` skips rows. Large `OFFSET` is slow. Topic 13 covers keyset pagination.
+
+```sql
+SELECT id, name FROM items ORDER BY id LIMIT 10 OFFSET 20;
+```
+
+`FETCH FIRST 10 ROWS ONLY` is the SQL-standard form of `LIMIT`.
 
 PostgreSQL does not require `FROM DUAL`. Use `SELECT` without `FROM` for expressions.
 
@@ -81,117 +89,38 @@ PostgreSQL does not require `FROM DUAL`. Use `SELECT` without `FROM` for express
 #### Theoretical questions
 
 1. What does each of `SELECT`, `INSERT`, `UPDATE`, and `DELETE` do?
-2. What happens when `UPDATE` has no `WHERE` clause?
-3. How do you insert more than one row in one statement?
-4. Is `SELECT` without `FROM` valid?
-5. Why must programs use parameters instead of string concatenation?
+2. What happens when `UPDATE` has no `WHERE`?
+3. Is `SELECT` without `FROM` valid?
+4. Why must programs use parameters instead of string concatenation?
+5. What does `INSERT ... SELECT` do?
 
 #### Easy practical tasks
 
-1. Create `items` as in this section. Insert three rows. Select all columns.
-2. Update one row by `id`. Select that row.
-3. Delete one row. Select the remaining rows.
-4. Run `SELECT 2 * 3 AS product;` with no `FROM`.
+1. Create `items`. Insert three rows. Select all rows.
+2. Update one row. Select it again.
+3. Delete one row. Count the remaining rows.
+4. Run `SELECT 1 + 1;` with no `FROM`.
 
 #### Medium practical tasks
 
-1. Insert two rows in one `INSERT` with two `VALUES` tuples. Then insert a row with `INSERT ... SELECT`.
-2. Write an `UPDATE` that increases `qty` by 1 for every row where `qty < 100`. Show `qty` before and after.
-3. Run a `DELETE` with a `WHERE` that matches no row. Write how many rows PostgreSQL reports.
+1. Use `INSERT ... SELECT` to copy some rows with new ids. Show the table.
+2. `UPDATE items SET qty = qty + 1 FROM ...` after you add a second table. Write the statement.
+3. Compare `LIMIT 5` and `FETCH FIRST 5 ROWS ONLY` on the same `ORDER BY`.
 
 #### Advanced practical tasks
 
-1. Create two tables. Use `UPDATE ... FROM` to copy a column from one table to the other. Use the official syntax.
-2. Write a `psql` script that inserts, updates, and deletes, then ends with a `SELECT`. Run it with `psql -f`.
+1. Write a `DELETE` that uses `USING` to remove items that match a second table.
+2. Read the `SELECT` reference. List five clauses that this section did not show (`GROUP BY` may be one).
 
 ---
 
-## PostgreSQL type output and implicit casts (careful)
+## `RETURNING`, `ILIKE`, dollar-quoting
 
-Every type has an input function and an output function. `psql` shows the output form. The stored value can differ from the text that you see.
-
-Examples:
-
-```sql
-SELECT 1;
-SELECT 1.0;
-SELECT DATE '2026-09-13';
-SELECT TIMESTAMP '2026-09-13 12:00:00';
-SELECT 'hello';
-```
-
-An untyped string literal has type `unknown` until PostgreSQL assigns a type. The context decides the type:
-
-```sql
-SELECT '2026-09-13';              -- text-like unknown
-SELECT '2026-09-13'::date;        -- explicit date
-SELECT DATE '2026-09-13';         -- typed literal
-```
-
-An implicit cast is a cast that you do not write. PostgreSQL adds it when the cast is marked as implicit in the catalogs. Example: `integer` can promote to `bigint` or `numeric` in many expressions.
-
-Careful cases:
-
-- `'1' = 1` can work because PostgreSQL casts the unknown or text value. Do not rely on this in application SQL. Write `1` for an integer column.
-- `UNION` picks a common type. Mixed `integer` and `numeric` become `numeric`.
-- `IN` lists and `CASE` branches follow type resolution rules. A mismatch raises an error or casts in a way that you did not expect.
-- `char(n)` output pads with spaces. Comparison with `text` can surprise you. Prefer `text` or `varchar`.
-- `timestamp` and `timestamptz` are different types. An implicit conversion uses the session `TimeZone`. Topic 4 covers this pair.
-
-Write an explicit cast when the type matters:
-
-```sql
-SELECT '42'::integer;
-SELECT CAST('42' AS integer);
-```
-
-See the cast:
-
-```sql
-SELECT pg_typeof(1), pg_typeof(1.0), pg_typeof('x');
-```
-
-`pg_typeof` shows the resolved type. Use it when a query fails with a type error.
-
-Do not disable type checks. Do not store numbers as `text` to avoid casts.
-
-### Questions
-
-#### Theoretical questions
-
-1. What is a type output function?
-2. What is an implicit cast?
-3. What type does an untyped string literal start as?
-4. Why can `'1' = 1` be a bad pattern in application SQL?
-5. What does `pg_typeof` show?
-
-#### Easy practical tasks
-
-1. Run `SELECT pg_typeof(1), pg_typeof(1.0), pg_typeof('1');`. Write the three types.
-2. Cast `'2026-09-13'` to `date` in two ways (`::` and `CAST`).
-3. Run `SELECT '1' = 1;`. Then run `SELECT '1'::text = 1;`. Record success or error for each.
-4. Write four sentences: output text, stored type, implicit cast, explicit cast.
-
-#### Medium practical tasks
-
-1. Build a `UNION` of `integer` and `numeric` literals. Use `pg_typeof` on the result column.
-2. Create a `char(5)` column and a `text` column. Insert `'abc'`. Select both. Compare them with `=`. Write what you see.
-3. Find three implicit casts in `pg_cast` (`SELECT * FROM pg_cast` with a filter). Write the source type and the target type.
-
-#### Advanced practical tasks
-
-1. Read "Type Conversion" in the official docs. Write the resolution steps for an operator in your own short list.
-2. Produce a type error with `CASE` or `UNION`. Fix it with an explicit cast. Save both SQL texts.
-
----
-
-## `RETURNING`
-
-`RETURNING` is a PostgreSQL extension. It returns rows from `INSERT`, `UPDATE`, or `DELETE` in the same statement. You do not need a second `SELECT`.
+`RETURNING` adds a result set to `INSERT`, `UPDATE`, or `DELETE`. You get the rows that the statement wrote or removed.
 
 ```sql
 INSERT INTO items (id, name, qty)
-VALUES (4, 'washer', 80)
+VALUES (4, 'washer', 10)
 RETURNING id, name;
 
 UPDATE items
@@ -204,283 +133,362 @@ WHERE id = 4
 RETURNING *;
 ```
 
-`RETURNING *` returns every column of the affected row. After `UPDATE`, the values are the new values. After `DELETE`, the values are the old values.
+Use `RETURNING` when the database fills identity, defaults, or trigger values. The client does not need a second `SELECT`.
 
-Use `RETURNING` to get a generated key:
+`LIKE` matches a pattern. `%` means any string. `_` means one character. `LIKE` is case-sensitive for typical `C` collation text.
 
-```sql
-CREATE TABLE notes (
-    id   integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    body text NOT NULL
-);
-
-INSERT INTO notes (body)
-VALUES ('hello')
-RETURNING id;
-```
-
-Topic 5 covers identity columns. Client drivers read the returned row with `Query` or `QueryRow`, not only `Exec`.
-
-`RETURNING` can compute expressions:
-
-```sql
-UPDATE items
-SET qty = qty + 10
-WHERE id = 1
-RETURNING id, qty, qty * 2 AS qty_double;
-```
-
-`WITH` can use a `RETURNING` result as a CTE. Topic 6 covers `WITH`.
-
-Do not run a separate `SELECT` for the same key when `RETURNING` already gives the row. Do not assume `RETURNING` works in every other SQL database.
-
-### Questions
-
-#### Theoretical questions
-
-1. Which statements accept `RETURNING`?
-2. What does `RETURNING *` mean on `UPDATE`?
-3. What does `RETURNING *` mean on `DELETE`?
-4. Why do client programs use `RETURNING` for identity columns?
-5. Is `RETURNING` in the SQL core that every database implements?
-
-#### Easy practical tasks
-
-1. Insert one `items` row with `RETURNING id, name`.
-2. Update that row with `RETURNING qty`.
-3. Delete that row with `RETURNING *`.
-4. Insert into `notes` (or an identity table) and return only `id`.
-
-#### Medium practical tasks
-
-1. Update three rows in one statement. Return `id` and the new `qty`. Count the returned rows.
-2. Use `RETURNING` with an expression column. Show the SQL and the result.
-3. Compare `INSERT` plus a later `SELECT` with one `INSERT ... RETURNING`. Write when the single statement is better.
-
-#### Advanced practical tasks
-
-1. Write `WITH deleted AS (DELETE FROM ... RETURNING *) SELECT * FROM deleted;`. Use a copy of a practice table.
-2. From a client library that you know (or `psql`), show how you read `RETURNING` columns. Write the API call names.
-
----
-
-## `LIMIT` / `OFFSET` and `FETCH`
-
-`LIMIT` restricts how many rows the query returns. `OFFSET` skips rows. PostgreSQL applies `OFFSET` first, then `LIMIT`, after `ORDER BY`.
-
-```sql
-SELECT id, name
-FROM items
-ORDER BY id
-LIMIT 10;
-
-SELECT id, name
-FROM items
-ORDER BY id
-LIMIT 10 OFFSET 20;
-```
-
-Always use `ORDER BY` with `LIMIT` and `OFFSET`. Without `ORDER BY`, the row set is not a stable page.
-
-`FETCH` is the SQL-standard form:
-
-```sql
-SELECT id, name
-FROM items
-ORDER BY id
-FETCH FIRST 10 ROWS ONLY;
-
-SELECT id, name
-FROM items
-ORDER BY id
-OFFSET 20
-FETCH NEXT 10 ROWS ONLY;
-```
-
-`FETCH FIRST 10 ROWS ONLY` matches `LIMIT 10`. You can write `ROW` or `ROWS`. You can write `FIRST` or `NEXT`.
-
-`LIMIT ALL` means no limit. `OFFSET 0` skips nothing.
-
-Problems with large `OFFSET`:
-
-- The server still reads and sorts the skipped rows.
-- Page 1000 is slower than page 1.
-- Concurrent inserts change pages.
-
-Topic 19 covers keyset pagination (`WHERE id > $1 ORDER BY id LIMIT 10`). Prefer keyset pagination for large lists.
-
-`FETCH` also appears in cursors (`FETCH FORWARD`). That is a different command. This section means the `SELECT` clause.
-
-### Questions
-
-#### Theoretical questions
-
-1. What does `LIMIT` do?
-2. What does `OFFSET` do?
-3. Why must `ORDER BY` appear with `LIMIT`?
-4. What is the `FETCH FIRST` form?
-5. Why is a large `OFFSET` slow?
-
-#### Easy practical tasks
-
-1. Insert at least 15 rows. Select the first 5 with `LIMIT` and `ORDER BY`.
-2. Select the next 5 with `LIMIT` and `OFFSET`.
-3. Rewrite the first query with `FETCH FIRST 5 ROWS ONLY`.
-4. Run the same `LIMIT` without `ORDER BY` twice. Write if the order stayed the same.
-
-#### Medium practical tasks
-
-1. Write page 1 and page 3 of size 5 with `OFFSET`. Show both SQL statements.
-2. Compare `LIMIT 5` and `FETCH NEXT 5 ROWS ONLY` on the same `ORDER BY`. Confirm equal rows.
-3. Time a query with `OFFSET 0` and the same query with a large `OFFSET` on a table of a few thousand rows. Write the two times.
-
-#### Advanced practical tasks
-
-1. Implement the same page with `OFFSET` and with a keyset (`WHERE id > ...`). Compare plans with `EXPLAIN` (topic 9 helps).
-2. Read the `SELECT` reference for `LIMIT` and `FETCH`. Write one option that this section did not show (`WITH TIES` if you use it).
-
----
-
-## `ILIKE` vs `LIKE`
-
-`LIKE` matches a string against a pattern. `%` matches any length. `_` matches one character.
+`ILIKE` is the case-insensitive form. It is a PostgreSQL extension.
 
 ```sql
 SELECT name FROM items WHERE name LIKE 'n%';
-SELECT name FROM items WHERE name LIKE '_olt';
-```
-
-`LIKE` is case-sensitive for the usual collations. `nail` does not match `LIKE 'N%'`.
-
-`ILIKE` is the PostgreSQL case-insensitive form:
-
-```sql
 SELECT name FROM items WHERE name ILIKE 'N%';
 ```
 
-`ILIKE` is not in the SQL standard. Other databases use `UPPER` and `LIKE`, or a separate collation.
+Escape `%` and `_` with `ESCAPE` when the user text can contain those characters. Topic 4 covers `SIMILAR TO` and regular expressions.
 
-Escape a literal `%` or `_` with `ESCAPE`:
-
-```sql
-SELECT name FROM items WHERE name LIKE '%\%%' ESCAPE '\';
-```
-
-You can write `NOT LIKE` and `NOT ILIKE`.
-
-Locale and collation affect `ILIKE`. Some locales have special case rules. For a stable case-insensitive column, teams often use `citext` (topic 13) or store a normalized copy.
-
-`LIKE 'abc%'` can use a B-tree index. `LIKE '%abc'` cannot use a normal B-tree index. Topic 8 covers indexes. Topic 7 covers `SIMILAR TO` and POSIX regular expressions.
-
-Do not use `LIKE '%' || user_input || '%'` without a plan for performance and for wildcard characters in the input.
-
-`~~` is the operator for `LIKE`. `~~*` is the operator for `ILIKE`. Prefer the keywords in application SQL.
-
-### Questions
-
-#### Theoretical questions
-
-1. What do `%` and `_` mean in `LIKE`?
-2. How is `ILIKE` different from `LIKE`?
-3. Is `ILIKE` in the SQL standard?
-4. How do you match a literal percent character?
-5. Which `LIKE` pattern can use a B-tree index?
-
-#### Easy practical tasks
-
-1. Select names that start with a letter of your choice. Use `LIKE`.
-2. Repeat the filter with `ILIKE` and a different letter case in the pattern.
-3. Select names that contain `o` anywhere. Use `%`.
-4. Run `NOT LIKE` and show the rows that fail the pattern.
-
-#### Medium practical tasks
-
-1. Insert a name that contains `%`. Write a `LIKE` query that finds that row and does not treat `%` as a wildcard.
-2. Compare `LIKE 'A%'` and `ILIKE 'A%'` on mixed-case data. Write the two row counts.
-3. Show `name ~~ 'n%'` and `name LIKE 'n%'`. Confirm that they match the same rows.
-
-#### Advanced practical tasks
-
-1. Read the docs for `LIKE` and collations. Write how locale can change `ILIKE`.
-2. Build a case-insensitive search with `LOWER(name) LIKE LOWER($pattern)` and compare it with `ILIKE`. Write one benefit of each form.
-
----
-
-## Dollar-quoting `$tag$ ... $tag$`
-
-A normal string uses single quotes. A quote inside the string becomes two quotes:
-
-```sql
-SELECT 'it''s a nail';
-```
-
-Dollar-quoting writes a string between matching tags:
+Dollar-quoting writes a string without doubled single quotes:
 
 ```sql
 SELECT $$it's a nail$$;
-SELECT $body$it's a nail$body$;
+SELECT $body$line 1
+line 2$body$;
 ```
 
-The form is `$tag$` + text + `$tag$`. The tag is optional. `$$` is valid. A tag is letters and digits. The tag is case-sensitive.
+The tag between `$` signs must match. Use dollar-quoting for function bodies (topic 9) and for long text in scripts. A dollar-quoted string is still a string literal. It is not a parameter. Do not put user input into dollar quotes in application SQL.
 
-Use dollar-quoting for:
-
-- function bodies (topic 13)
-- long SQL in `DO` blocks
-- strings that contain many quotes
-- dynamic SQL that contains quotes
-
-Example function body:
-
-```sql
-CREATE FUNCTION add_one(i integer)
-RETURNS integer
-LANGUAGE sql
-AS $fn$
-    SELECT i + 1;
-$fn$;
-```
-
-The body is a string. Dollar tags avoid quote stacking.
-
-Rules:
-
-- The close tag must match the open tag.
-- The text can contain `$other$` if `other` is not the same tag.
-- Dollar-quoting does not expand escape sequences like `E'\n'`. Newlines stay as newlines.
-- Do not mix `$$` in nested strings when an inner string also uses `$$`. Use a named tag.
-
-`psql` variable interpolation still applies outside the rules you set. For scripts, prefer explicit tags.
-
-Dollar-quoting is a PostgreSQL feature. Other databases may not accept it.
+PostgreSQL also casts types in many contexts. Write explicit casts when the type is not obvious: `qty::text` or `CAST(qty AS text)`.
 
 ### Questions
 
 #### Theoretical questions
 
-1. What problem does dollar-quoting solve?
-2. What is the shortest dollar-quote pair?
-3. Why use a named tag such as `$fn$`?
-4. Does dollar-quoting process `E'\n'` escapes?
-5. Where do function bodies use dollar-quoting?
+1. What does `RETURNING` return for `DELETE`?
+2. How does `ILIKE` differ from `LIKE`?
+3. What do `%` and `_` mean in `LIKE`?
+4. Why is dollar-quoting useful in a function body?
+5. Is a dollar-quoted string a parameter?
 
 #### Easy practical tasks
 
-1. Select a string that contains a single quote. Write it with doubled quotes and with `$$`.
-2. Select a string with `$body$ ... $body$`.
-3. Create a SQL function with a dollar-quoted body that returns `integer`.
-4. Write four sentences: single quote, doubled quote, `$$`, named tag.
+1. Insert a row with `RETURNING id, name`.
+2. Update that row with `RETURNING qty`.
+3. Select names with `ILIKE '%a%'`.
+4. Run `SELECT $$it's$$;` and the same text with single-quote escaping.
 
 #### Medium practical tasks
 
-1. Write a `DO` block with dollar-quoting that `RAISE NOTICE` a message. Run it.
-2. Nest a string: outer tag `$outer$`, inner tag `$inner$`. Select the inner text.
-3. Fail on purpose with a mismatched close tag. Record the error. Fix the tag.
+1. Delete rows that match a pattern and `RETURNING *` into a look at the removed names.
+2. Show `LIKE 'N%'` versus `ILIKE 'N%'` on mixed-case names.
+3. Write a function-body style dollar-quoted string that contains a single quote and a newline.
 
 #### Advanced practical tasks
 
-1. Read `CREATE FUNCTION` in the docs. Rewrite one example from quote-escaping to dollar-quoting.
-2. Generate dynamic SQL that contains quotes. Build the string with `format()` and dollar-quoting. Run it with `EXECUTE` in a `DO` block.
+1. Combine `INSERT ... SELECT` with `RETURNING`. Show the new ids.
+2. Read `LIKE` escape rules. Write a pattern that matches a literal `%`.
+
+---
+
+## Joins
+
+An **inner join** returns rows that match the join condition.
+
+```sql
+SELECT c.email, o.id AS order_id
+FROM customers AS c
+INNER JOIN orders AS o ON o.customer_id = c.id;
+```
+
+`JOIN` without a word is an inner join. Write `INNER JOIN` when you teach.
+
+A **left outer join** returns every row from the left table. When no match exists, the right columns are `NULL`.
+
+```sql
+SELECT c.email, o.id AS order_id
+FROM customers AS c
+LEFT JOIN orders AS o ON o.customer_id = c.id;
+```
+
+A **right outer join** returns every row from the right table. A **full outer join** returns every row from both sides.
+
+```sql
+SELECT *
+FROM customers AS c
+FULL JOIN orders AS o ON o.customer_id = c.id;
+```
+
+A **cross join** is the Cartesian product. Every left row pairs with every right row. There is no `ON` clause.
+
+```sql
+SELECT *
+FROM sizes
+CROSS JOIN colors;
+```
+
+Use a cross join only when you need all pairs (example: size × color).
+
+`USING (customer_id)` is a short form when both columns have the same name. `NATURAL JOIN` matches all same-named columns. Do not use `NATURAL JOIN`. A new column can change the join.
+
+Filter in `ON` versus `WHERE` for outer joins:
+
+- `ON` decides matches
+- `WHERE` on a right column after `LEFT JOIN` can remove unmatched left rows and turn the join into an inner join
+
+```sql
+-- keeps customers without orders
+SELECT c.email, o.id
+FROM customers c
+LEFT JOIN orders o ON o.customer_id = c.id AND o.id > 10;
+
+-- removes customers with no matching order
+SELECT c.email, o.id
+FROM customers c
+LEFT JOIN orders o ON o.customer_id = c.id
+WHERE o.id > 10;
+```
+
+Always write aliases. Always write the join condition. Do not join without `ON` unless you mean `CROSS JOIN`.
+
+`UPDATE ... FROM` and `DELETE ... USING` are joins for writes. Put the join in `FROM`/`USING`. Keep `WHERE` for the extra filter.
+
+### Questions
+
+#### Theoretical questions
+
+1. What rows does an inner join return?
+2. What rows does a left join return?
+3. What is a cross join?
+4. Why must you avoid `NATURAL JOIN`?
+5. How can `WHERE` after a left join behave like an inner join?
+
+#### Easy practical tasks
+
+1. Create `customers` and `orders`. Insert one customer with orders and one customer without orders. Run an inner join.
+2. Run a left join on the same data. Count the rows.
+3. Run a cross join of two tiny tables (2 × 3). Count the rows.
+4. Rewrite an inner join with `USING` if the column names match.
+
+#### Medium practical tasks
+
+1. Show the `ON` versus `WHERE` pair from this section. Write the two row counts.
+2. Write a full outer join. Insert an orphan order if your foreign key allows it, or drop the FK on a copy.
+3. Join three tables: customers, orders, order_lines. Use inner joins. Order the result.
+
+#### Advanced practical tasks
+
+1. Draw a box diagram for inner, left, right, and full joins. Add one SQL example each.
+2. Write an `UPDATE` that uses `FROM` to copy a value from another table. Use `RETURNING`.
+
+---
+
+## `WITH` and `WITH RECURSIVE`
+
+A CTE names a query. The main query reads that name like a table.
+
+```sql
+WITH recent AS (
+    SELECT id, customer_id, created_at
+    FROM orders
+    WHERE created_at >= DATE '2026-01-01'
+)
+SELECT c.email, r.id
+FROM recent AS r
+JOIN customers AS c ON c.id = r.customer_id;
+```
+
+You can list more than one CTE. Separate them with commas.
+
+```sql
+WITH a AS (...),
+     b AS (SELECT * FROM a WHERE ...)
+SELECT * FROM b;
+```
+
+By default a CTE is an optimization fence in older mental models. In PostgreSQL 12 and later the planner can inline many CTEs. You can force materialization with `WITH a AS MATERIALIZED (...)`. You can allow inline with `NOT MATERIALIZED`.
+
+Use a CTE to name a step. Do not nest ten CTEs when a simple join is enough.
+
+`WITH RECURSIVE` builds a working table. The first part (the anchor) runs once. The second part (the recursive term) reads the working table until it adds no row.
+
+```sql
+WITH RECURSIVE tree AS (
+    SELECT id, parent_id, name, 1 AS depth
+    FROM categories
+    WHERE parent_id IS NULL
+    UNION ALL
+    SELECT c.id, c.parent_id, c.name, t.depth + 1
+    FROM categories AS c
+    JOIN tree AS t ON c.parent_id = t.id
+)
+SELECT * FROM tree ORDER BY depth, name;
+```
+
+Use `UNION ALL` when you do not need to drop duplicate rows. Use `UNION` when you must drop duplicates. Always include a stop condition (depth limit or a finite tree). A cycle without a visited-set check can loop until `statement_timeout` or memory limits.
+
+PostgreSQL 14 and later can use `SEARCH` and `CYCLE` clauses on recursive CTEs. PostgreSQL 16 and 17 keep those clauses. They mark cycles and search order.
+
+A data-modifying CTE can `INSERT`, `UPDATE`, or `DELETE` in `WITH` and then `SELECT` the `RETURNING` rows. The writes run in one statement.
+
+```sql
+WITH moved AS (
+    DELETE FROM items WHERE qty = 0 RETURNING *
+)
+INSERT INTO items_archive SELECT * FROM moved;
+```
+
+Do not use recursion for a simple list that `generate_series` can build.
+
+### Questions
+
+#### Theoretical questions
+
+1. What is a CTE?
+2. What does the recursive term read?
+3. When do you write `UNION ALL` in a recursive CTE?
+4. What does `AS MATERIALIZED` force?
+5. Can a CTE contain `DELETE`?
+
+#### Easy practical tasks
+
+1. Write a non-recursive `WITH` that filters `orders` and then joins `customers`.
+2. List two CTEs in one `WITH`. Select from the second.
+3. Build a category tree with three rows. Run the recursive query.
+4. Write four sentences: CTE, anchor, recursive term, cycle.
+
+#### Medium practical tasks
+
+1. Add a depth limit (`WHERE t.depth < 5`) to the tree query.
+2. Compare `EXPLAIN` for a CTE with and without `MATERIALIZED` on a query that you invent.
+3. Use a data-modifying CTE to delete zero-qty items and insert them into an archive table.
+
+#### Advanced practical tasks
+
+1. Read `SEARCH` and `CYCLE` in the 17 docs. Add `CYCLE` to a graph that has a loop. Show the cycle mark.
+2. Write a recursive query that walks a manager chain (`employees.manager_id`). Stop at the root.
+
+---
+
+## `LEFT JOIN LATERAL`
+
+A lateral join lets the right-hand query use columns from the left-hand row.
+
+```sql
+SELECT c.id, c.email, recent.id AS order_id, recent.created_at
+FROM customers AS c
+LEFT JOIN LATERAL (
+    SELECT o.id, o.created_at
+    FROM orders AS o
+    WHERE o.customer_id = c.id
+    ORDER BY o.created_at DESC
+    LIMIT 1
+) AS recent ON true;
+```
+
+Without `LATERAL`, the subquery in `FROM` cannot see `c.id`. `LATERAL` makes that reference legal.
+
+`LEFT JOIN LATERAL ... ON true` keeps every left row. When the subquery returns no row, the right columns are `NULL`. `CROSS JOIN LATERAL` or `INNER JOIN LATERAL` drops left rows that have no match.
+
+A function in `FROM` is implicitly lateral:
+
+```sql
+SELECT u.id, g
+FROM users AS u
+CROSS JOIN LATERAL unnest(u.tags) AS g;
+```
+
+`unnest` is topic 4. The pattern is the same: each left row produces a set.
+
+Use `LATERAL` for "top N per group" when a window function (topic 14) is not yet in your toolkit, or when a set-returning function needs left columns.
+
+A correlated subquery in `SELECT` can do similar work. `LATERAL` in `FROM` is often clearer and can be faster when you need several columns from the inner query.
+
+Do not use `LATERAL` for a normal join that `ON` can express. Do not forget `ON true` on a `LEFT JOIN LATERAL` subquery. A missing `ON` is a syntax error for `LEFT JOIN`.
+
+### Questions
+
+#### Theoretical questions
+
+1. What extra right does `LATERAL` give the right-hand query?
+2. Why use `LEFT JOIN LATERAL` instead of `CROSS JOIN LATERAL` for "latest order per customer"?
+3. What does `ON true` mean in this pattern?
+4. Is a function in `FROM` lateral?
+5. When must you not use `LATERAL`?
+
+#### Easy practical tasks
+
+1. Create customers and orders. Write the "latest order per customer" query from this section.
+2. Change it to `CROSS JOIN LATERAL`. Count rows versus the left join.
+3. Write one sentence that explains why `c.id` is visible inside the subquery.
+4. Draw left row → inner `LIMIT 1` → output columns.
+
+#### Medium practical tasks
+
+1. Return the latest two orders per customer (`LIMIT 2`). Count rows.
+2. Compare a correlated subquery in `SELECT` that returns one id with the `LATERAL` form that returns two columns.
+3. Use `LATERAL` with `generate_series(1, n)` where `n` is a column on the left table.
+
+#### Advanced practical tasks
+
+1. `EXPLAIN (ANALYZE, BUFFERS)` the latest-order query. Write the join type that you see.
+2. Rewrite the same latest-order problem with `DISTINCT ON` (next section). Compare the two plans.
+
+---
+
+## `DISTINCT ON`
+
+`DISTINCT ON (expr [, ...])` keeps the first row of each distinct value of those expressions. "First" means the first row in the current `ORDER BY`.
+
+```sql
+SELECT DISTINCT ON (customer_id)
+    customer_id, id, created_at
+FROM orders
+ORDER BY customer_id, created_at DESC;
+```
+
+This query keeps one row per `customer_id`: the latest `created_at`. The `ORDER BY` must start with the `DISTINCT ON` expressions. Then you add the sort that picks the winner (`created_at DESC`).
+
+`DISTINCT ON` is a PostgreSQL extension. It is not standard `DISTINCT`. `DISTINCT` without `ON` drops full-row duplicates.
+
+```sql
+SELECT DISTINCT customer_id FROM orders;
+```
+
+Rules:
+
+- `ORDER BY` must begin with the same expressions as `DISTINCT ON` (or expressions that match them).
+- Without a matching `ORDER BY`, the winner is not defined.
+- `DISTINCT ON` runs after `WHERE` and before `LIMIT`.
+
+Use `DISTINCT ON` for "best row per group" when the rule is a sort. A window function (`ROW_NUMBER()`) can do the same job and is standard SQL (topic 14). `DISTINCT ON` is shorter.
+
+Do not use `DISTINCT ON` to hide a bad join that multiplies rows. Fix the join. Do not omit `ORDER BY`.
+
+### Questions
+
+#### Theoretical questions
+
+1. Which row does `DISTINCT ON` keep?
+2. What must `ORDER BY` start with?
+3. How does `DISTINCT` differ from `DISTINCT ON`?
+4. Is `DISTINCT ON` standard SQL?
+5. When do you prefer a window function instead?
+
+#### Easy practical tasks
+
+1. Insert two orders per customer. Run the latest-order `DISTINCT ON` query.
+2. Change `ORDER BY` to `created_at ASC`. Write which order you keep.
+3. Run `SELECT DISTINCT customer_id FROM orders;`.
+4. Write four sentences: winner, `ORDER BY`, `DISTINCT`, extension.
+
+#### Medium practical tasks
+
+1. Keep the order with the largest `total` per customer. Show the SQL.
+2. Add `LIMIT 10` after `DISTINCT ON`. Write how many customers you can see at most.
+3. Compare `DISTINCT ON` with `GROUP BY customer_id` plus `MAX(created_at)`. Write which columns you can keep in each form.
+
+#### Advanced practical tasks
+
+1. `EXPLAIN ANALYZE` `DISTINCT ON` versus `LATERAL LIMIT 1` versus `ROW_NUMBER()` if you already know windows. Write the cheapest plan on your data.
+2. Read the `SELECT` reference for `DISTINCT ON`. Copy the official `ORDER BY` rule in your own words.
 
 ---
 
@@ -492,26 +500,26 @@ These questions do not repeat the questions in the sections above. They cover th
 
 #### Theoretical questions
 
-1. Describe one `INSERT` that uses dollar-quoting in a `text` column and returns the new `id`.
-2. Why do implicit casts plus `LIMIT` without `ORDER BY` make a paged API unsafe?
-3. When do you choose `ILIKE` instead of `LOWER(col) LIKE LOWER(pattern)`?
-4. How do `RETURNING` and a later `SELECT` differ for a concurrent `UPDATE` on the same row?
-5. What is the difference between a typed date literal and an unknown string that looks like a date?
+1. How do `RETURNING` and a later `SELECT` differ after an `INSERT` of an identity row?
+2. When does a left join plus `WHERE` on the right table lie about "all customers"?
+3. What stops a recursive CTE from running forever?
+4. Which problem can both `LATERAL` and `DISTINCT ON` solve?
+5. Why is `OFFSET 100000` a poor way to page through `orders`?
 
 #### Easy practical tasks
 
-1. Create a table, insert two rows with one statement, update one row with `RETURNING`, and select with `LIKE`.
-2. Write a cheat sheet: four data statements, `RETURNING`, `LIMIT`/`FETCH`, `LIKE`/`ILIKE`, dollar-quoting.
-3. Page a sorted list with `FETCH FIRST 3 ROWS ONLY` and with `OFFSET`.
-4. Use `pg_typeof` on a `RETURNING` column from an `INSERT` of a string into a `text` column.
+1. Insert an item with dollar-quoted text that contains a quote. `RETURNING` the `id` and `name`.
+2. Join customers to orders with `LEFT JOIN`. List customers who have no order (`WHERE o.id IS NULL`).
+3. Write a `WITH` named `low` for items with `qty < 5`. Select from `low`.
+4. Use `ILIKE` to find names that contain `a` in any case.
 
 #### Medium practical tasks
 
-1. Write a `psql` script that creates a table, loads five rows, demos `ILIKE`, and prints `RETURNING` from a `DELETE`.
-2. Find a type mismatch in a `WHERE` clause. Fix it with an explicit cast. Show `EXPLAIN` is not required; show the two SQL texts.
-3. Document ten rules for safe SQL in PostgreSQL for a beginner teammate (parameters, `WHERE`, `ORDER BY`, casts).
+1. In one script: insert a customer, insert two orders, return the latest order with `DISTINCT ON`, and delete zero-qty items with `RETURNING`.
+2. Write a recursive CTE for comments that reply to comments (`parent_id`). Show depth.
+3. Update `items.qty` from a `restock` table using `UPDATE ... FROM`. Return new qty values.
 
 #### Advanced practical tasks
 
-1. Build a small paging procedure: page size and page number as arguments in a `DO` block or SQL function. Use `LIMIT` and `OFFSET`. Then write a second version that uses a keyset.
-2. Read the `INSERT`, `UPDATE`, and `SELECT` reference pages. List three clauses that this topic did not cover. Write one sentence each.
+1. Build a small shop query file: one inner join, one left join, one CTE, one `LATERAL` latest row, one `DISTINCT ON`. Add `EXPLAIN` for two of them.
+2. Read "WITH Queries" and "DISTINCT" in the 17 docs. Write a one-page cheat sheet that a teammate can print.

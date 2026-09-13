@@ -10,7 +10,7 @@ Use one term for each concept. An event is a fact that occurred. A record is the
 
 ---
 
-## What Kafka is (distributed event log / streaming platform)
+## What Kafka is (distributed event log)
 
 Kafka is a distributed event log. A log is an append-only sequence of records. Producers append records. Consumers read records by position. Kafka does not delete a record when one consumer reads it.
 
@@ -20,7 +20,7 @@ Kafka is not a request-reply service. Kafka is not a place to update one row by 
 
 Kafka runs as a cluster of brokers. New clusters use KRaft. KRaft stores cluster metadata in a Raft controller quorum. The controller quorum is part of Kafka. You do not add ZooKeeper to a new cluster.
 
-Typical uses of Kafka:
+Teams use Kafka to:
 
 - move events between services
 - collect logs and metrics
@@ -57,17 +57,17 @@ Typical uses of Kafka:
 
 ---
 
-## Kafka vs a message queue (RabbitMQ) vs a database
+## Kafka vs a message queue vs a database
 
 A message queue such as RabbitMQ delivers a message to a consumer. After the consumer acknowledges the message, the broker can remove it. The queue is a buffer of work. Many queue systems do not keep a long history for new readers.
 
-Kafka is a log. A consumer does not remove the record. Retention time or retention size, or compaction, removes records. A new consumer group can read old records if the records are still on disk.
+Kafka is a log. A consumer does not remove the record. Retention time, retention size, or compaction removes records. A new consumer group can read old records if the records are still on disk.
 
 A database stores the current state. You update a row. You query by key. A database is the right tool when you need transactions on current records and rich queries. Kafka does not replace a database.
 
 You can use both. A service writes a change to Kafka. Another service updates a database from those events. Kafka is the durable log of changes. The database is the queryable state.
 
-Do not treat Kafka as a job queue without a plan. Kafka has no built-in delay queue or priority queue like some brokers. Do not treat Kafka as the only source of truth for interactive queries.
+Do not treat Kafka as a job queue without a design. Kafka has no built-in delay queue or priority queue like some brokers. Do not treat Kafka as the only source of truth for interactive queries.
 
 Short contrast:
 
@@ -94,26 +94,26 @@ Short contrast:
 
 #### Medium practical tasks
 
-1. Read a short RabbitMQ or other queue tutorial (official docs). Write five differences from Kafka. Use facts, not opinions.
+1. Read a short official tutorial for RabbitMQ or another queue. Write five differences from Kafka. Use facts, not opinions.
 2. Draw two sequences for the same order event: one through a queue, one through Kafka. Mark when a late reader can still see the event.
-3. Interview yourself: pick one feature (search by field, replay last hour, exactly one worker). Choose Kafka, a queue, or a database. Write the reason.
+3. Pick one need (search by field, replay last hour, exactly one worker). Choose Kafka, a queue, or a database. Write the reason.
 
 #### Advanced practical tasks
 
 1. Write a one-page design note for a shop: orders go to Kafka, stock lives in a database. List what each store owns. List one failure if you invert that choice.
-2. Find the Kafka documentation on retention. Quote the two main retention limits (time and size) in your own words. Do not copy a long passage.
+2. Find the Kafka documentation on retention. Write the two main retention limits (time and size) in your own words. Do not copy a long passage.
 
 ---
 
-## Events, producers, consumers, topics
+## Events, producers, consumers, and topics
 
 An event is a fact: "user 9 placed order 55". The producer is the program that writes the event to Kafka. The consumer is the program that reads the event. The topic is the named log that holds the records.
 
 A record has a key, a value, a timestamp, and optional headers. Topic 2 describes the record in full. The producer serializes the key and the value to bytes. Kafka stores those bytes.
 
-One topic has one or more partitions. A partition is an ordered sequence. The producer selects a partition. The consumer reads from one or more partitions. Topic 3 explains why partitions exist.
+One topic has one or more partitions. A partition is an ordered sequence. The producer selects a partition. The consumer reads from one or more partitions. Topic 2 explains partitions.
 
-Many producers can write to the same topic. Many consumers can read the same topic. Consumers that share work use a consumer group. Topic 6 explains groups.
+Many producers can write to the same topic. Many consumers can read the same topic. Consumers that share work use a consumer group. Topic 4 explains groups.
 
 Name topics by the event type or the stream, not by the one service that writes today. Example: `orders.placed` is clearer than `order-service-out`.
 
@@ -147,7 +147,7 @@ Name topics by the event type or the stream, not by the one service that writes 
 
 ---
 
-## Installing Kafka (KRaft mode) or using Docker / Confluent / MSK / Redpanda
+## Installing Kafka in KRaft mode (or Docker / a managed service)
 
 Use KRaft for every new install. KRaft is the Kafka metadata mode. The controller quorum stores topic and broker metadata. Do not install ZooKeeper for a new cluster.
 
@@ -165,11 +165,9 @@ After the broker starts, clients use a bootstrap address. The common local value
 
 **Docker.** The official Apache Kafka container image starts a KRaft broker. Use Docker when you want a short local setup. Pin an image version. Do not use ZooKeeper compose files from old blogs.
 
-**Confluent.** Confluent Platform and Confluent Cloud speak the Kafka protocol. Cloud hides brokers. You still use topics, producers, and consumers.
+**Managed service.** Confluent Cloud, Amazon MSK, and similar products speak the Kafka protocol. Cloud hides brokers. You still use topics, producers, and consumers. New MSK clusters can use KRaft. Follow the current vendor guide for the cluster mode.
 
-**Amazon MSK.** MSK is Kafka as a managed service on AWS. New MSK clusters can use KRaft. Follow the current AWS guide for the cluster mode.
-
-**Redpanda.** Redpanda speaks the Kafka API. You can use many Kafka clients with Redpanda. The operations are not the same as Apache Kafka. This handbook teaches Apache Kafka. Use Redpanda only when you know that you want that product.
+**Redpanda.** Redpanda speaks the Kafka API. You can use many Kafka clients with Redpanda. The operations are not the same as Apache Kafka. This handbook teaches Apache Kafka. Use Redpanda only when you know that you want that product. Topic 12 compares products.
 
 Check the install:
 
@@ -193,14 +191,14 @@ An empty list or a list of internal topics means the client reached the cluster.
 
 1. Start a single-node KRaft Kafka (local install or Docker). Run a topic list command. Save the full command and the output.
 2. Create a topic `demo` with three partitions and replication factor 1. Describe the topic. Save the output.
-3. Write a two-column table: "Install path" and "When you use it". Add rows for local Apache Kafka, Docker, Confluent Cloud, MSK, and Redpanda.
+3. Write a two-column table: "Install path" and "When you use it". Add rows for local Apache Kafka, Docker, and one managed service.
 4. Find the `server.properties` (or container env) for your install. Write the values of the listener and the process roles if they appear.
 
 #### Medium practical tasks
 
 1. Start Kafka. Create `demo`. Use the console producer to send three lines. Use the console consumer with `--from-beginning`. Save the three lines that you see.
 2. Stop the broker. Start it again. Consume `demo` from the beginning. Confirm that the three lines are still there.
-3. Compare the official Apache Docker quick start with one Confluent local quick start. Write five differences (commands, ports, extra services).
+3. Compare the official Apache Docker quick start with one managed-service quick start. Write five differences (commands, ports, extra services).
 
 #### Advanced practical tasks
 
@@ -209,7 +207,7 @@ An empty list or a list of internal topics means the client reached the cluster.
 
 ---
 
-## Official docs: kafka.apache.org/documentation
+## Official docs
 
 The primary documentation is [https://kafka.apache.org/documentation/](https://kafka.apache.org/documentation/). It contains the design, the APIs, the configuration keys, and the operations notes.
 
@@ -248,7 +246,7 @@ Use `kafka-topics --help` and the other script help texts in the `bin` folder. T
 
 #### Advanced practical tasks
 
-1. Make a one-page map of the official documentation for a beginner. Assign each of topics 1–11 in this path to one official page.
+1. Make a one-page map of the official documentation for a beginner. Assign each of topics 1–12 in this path to one official page.
 2. Read the KRaft section for your version. Write ten facts about controllers and metadata. Do not mention ZooKeeper except in one sentence that says you do not use it for new clusters.
 
 ---
@@ -265,7 +263,7 @@ These questions do not repeat the questions in the sections above. They cover th
 2. Why does this handbook treat an event and a record as two terms?
 3. A teammate wants to start ZooKeeper "because old blogs use it". Which facts do you use to refuse that plan?
 4. How do the official docs and a console `--help` flag list work together in daily work?
-5. What stays the same when you move from local Docker Kafka to MSK from a producer view?
+5. What stays the same when you move from local Docker Kafka to a managed service from a producer view?
 
 #### Easy practical tasks
 

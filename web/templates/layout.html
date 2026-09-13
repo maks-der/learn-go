@@ -30,7 +30,8 @@
         <a class="btn btn--ghost{{if eq .Lang "en"}} is-on{{end}}" href="{{if eq .Lang "en"}}{{.SelfURL}}{{else}}{{.AltURL}}{{end}}" hreflang="en" lang="en">EN</a>
         <a class="btn btn--ghost{{if eq .Lang "ru"}} is-on{{end}}" href="{{if eq .Lang "ru"}}{{.SelfURL}}{{else}}{{.AltURL}}{{end}}" hreflang="ru" lang="ru">RU</a>
         <button type="button" class="btn btn--accent" id="theme-toggle" aria-pressed="false" data-label-light="{{.UI.ThemeLight}}" data-label-dark="{{.UI.ThemeDark}}">
-          <span data-theme-label>{{.UI.ThemeDark}}</span>
+          <span class="btn__text" data-theme-label>{{.UI.ThemeDark}}</span>
+          <span class="btn__mark" aria-hidden="true"></span>
         </button>
       </nav>
     </div>

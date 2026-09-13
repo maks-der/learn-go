@@ -1,5 +1,5 @@
 GO      ?= go
-PKG     := ./cmd/web
+PKG     := ./cmd
 PORT    ?= 8080
 BIN_DIR := bin
 BIN     := $(BIN_DIR)/learngo

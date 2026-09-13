@@ -44,7 +44,9 @@ type Topic struct {
 	ModTime  time.Time
 }
 
-// Store holds handbook pages from the EN and RU folders.
+const contentDir = "common"
+
+// Store holds handbook pages from common/en and common/ru.
 type Store struct {
 	mu     sync.RWMutex
 	root   string
@@ -54,7 +56,7 @@ type Store struct {
 }
 
 // FindRoot walks from the working directory and the executable
-// until it finds both EN and RU folders.
+// until it finds common/en and common/ru.
 func FindRoot() (string, error) {
 	seen := map[string]bool{}
 	var starts []string
@@ -79,16 +81,16 @@ func FindRoot() (string, error) {
 			}
 		}
 	}
-	return "", fmt.Errorf("EN and RU folders not found")
+	return "", fmt.Errorf("common/en and common/ru folders not found")
 }
 
 func isContentRoot(dir string) bool {
-	en, err1 := os.Stat(filepath.Join(dir, "EN"))
-	ru, err2 := os.Stat(filepath.Join(dir, "RU"))
+	en, err1 := os.Stat(filepath.Join(dir, contentDir, "en"))
+	ru, err2 := os.Stat(filepath.Join(dir, contentDir, "ru"))
 	return err1 == nil && err2 == nil && en.IsDir() && ru.IsDir()
 }
 
-// NewStore loads all Markdown files from EN and RU.
+// NewStore loads all Markdown files from common/en and common/ru.
 func NewStore(root string) (*Store, error) {
 	s := &Store{
 		root: root,
@@ -112,9 +114,9 @@ func NewStore(root string) (*Store, error) {
 func langDir(lang string) string {
 	switch lang {
 	case "ru":
-		return "RU"
+		return filepath.Join(contentDir, "ru")
 	default:
-		return "EN"
+		return filepath.Join(contentDir, "en")
 	}
 }
 

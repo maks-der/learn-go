@@ -1,28 +1,28 @@
 :root,
 [data-theme="light"] {
-  --bg: #efe8dc;
-  --ink: #3f372f;
-  --muted: #6d6358;
-  --paper: #f7f2ea;
-  --line: #8a7d6d;
-  --accent: #d7e0cc;
-  --accent-ink: #3f372f;
-  --code: #e7dfd2;
-  --shadow: 5px 5px 0 #c4b8a6;
-  --link: #5a6f62;
+  --bg: #f3f3f1;
+  --ink: #2b2b2b;
+  --muted: #6b6b69;
+  --paper: #fafafa;
+  --line: #8d8d8a;
+  --accent: #e3e3e0;
+  --accent-ink: #2b2b2b;
+  --code: #ececea;
+  --shadow: 5px 5px 0 #c5c5c2;
+  --link: #3e5668;
 }
 
 [data-theme="dark"] {
-  --bg: #3a342d;
-  --ink: #ece4d7;
-  --muted: #c2b6a6;
-  --paper: #4a433b;
-  --line: #9a8e7e;
-  --accent: #7d8b72;
-  --accent-ink: #f3eee4;
-  --code: #403a33;
-  --shadow: 5px 5px 0 #5e574e;
-  --link: #c3cfb8;
+  --bg: #07090e;
+  --ink: #d7e0ec;
+  --muted: #8c97a8;
+  --paper: #10151e;
+  --line: #5d6d86;
+  --accent: #243044;
+  --accent-ink: #d7e0ec;
+  --code: #0c1118;
+  --shadow: 5px 5px 0 #1a2433;
+  --link: #9bb4d4;
 }
 
 * {
@@ -470,30 +470,28 @@ body {
 
   .rail {
     position: static;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    order: -1;
+    max-height: none;
+    overflow: visible;
   }
 
   .rail__list {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 0.45rem;
-    list-style: none;
-    padding: 0;
+    display: block;
+    list-style: decimal;
+    padding-left: 1.25rem;
     margin: 0;
   }
 
   .rail__list li {
-    margin: 0;
-    flex: 0 0 auto;
+    margin: 0.4rem 0;
   }
 
   .rail__list a {
-    display: inline-block;
-    white-space: nowrap;
-    border: 2px solid var(--line);
-    padding: 0.4rem 0.65rem;
-    background: var(--bg);
+    display: inline;
+    white-space: normal;
+    border: 0;
+    padding: 0;
+    background: none;
   }
 
   .toc__link {

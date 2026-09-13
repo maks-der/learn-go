@@ -27,6 +27,8 @@ type page struct {
 	SelfURL   string
 	AltURL    string
 	UI        UI
+	Sections  []content.Section
+	Section   *content.Section
 	Topics    []content.Topic
 	Topic     *content.Topic
 	Prev      *content.Topic
@@ -47,8 +49,12 @@ func New(store *content.Store, root string) (http.Handler, error) {
 	s.mux.HandleFunc("GET /{$}", s.redirectHome)
 	s.mux.HandleFunc("GET /en/{$}", s.home)
 	s.mux.HandleFunc("GET /ru/{$}", s.home)
-	s.mux.HandleFunc("GET /en/{slug}", s.topic)
-	s.mux.HandleFunc("GET /ru/{slug}", s.topic)
+	s.mux.HandleFunc("GET /en/{section}/{$}", s.section)
+	s.mux.HandleFunc("GET /ru/{section}/{$}", s.section)
+	s.mux.HandleFunc("GET /en/{section}/{slug}", s.topic)
+	s.mux.HandleFunc("GET /ru/{section}/{slug}", s.topic)
+	s.mux.HandleFunc("GET /en/{name}", s.legacy)
+	s.mux.HandleFunc("GET /ru/{name}", s.legacy)
 	return s, nil
 }
 
@@ -93,41 +99,95 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		SelfURL:   "/" + lang + "/",
 		AltURL:    "/" + otherLang(lang) + "/",
 		UI:        uiFor(lang),
-		Topics:    s.store.List(lang),
+		Sections:  s.store.ListSections(lang),
 	}
 	s.render(w, "home", p, http.StatusOK)
 }
 
-func (s *Server) topic(w http.ResponseWriter, r *http.Request) {
+func (s *Server) section(w http.ResponseWriter, r *http.Request) {
 	lang := langFromPath(r)
-	slug := r.PathValue("slug")
-	if !content.ValidLang(lang) || !content.ValidSlug(slug) {
+	section := r.PathValue("section")
+	if !content.ValidLang(lang) || !content.ValidSection(section) {
 		s.notFound(w, r, fallbackLang(lang))
 		return
 	}
-	topic, ok := s.store.Get(lang, slug)
+	sec, ok := s.store.Section(lang, section)
 	if !ok {
 		s.notFound(w, r, lang)
 		return
 	}
 	setLangCookie(w, lang)
-	prev, next := s.store.Neighbors(lang, slug)
+	p := page{
+		Lang:      lang,
+		OtherLang: otherLang(lang),
+		HomeURL:   "/" + lang + "/",
+		SelfURL:   "/" + lang + "/" + section + "/",
+		AltURL:    "/" + otherLang(lang) + "/" + section + "/",
+		UI:        uiFor(lang),
+		Section:   &sec,
+		Topics:    s.store.List(lang, section),
+	}
+	if !s.store.HasSection(p.OtherLang, section) {
+		p.AltURL = "/" + p.OtherLang + "/"
+	}
+	s.render(w, "section", p, http.StatusOK)
+}
+
+func (s *Server) topic(w http.ResponseWriter, r *http.Request) {
+	lang := langFromPath(r)
+	section := r.PathValue("section")
+	slug := r.PathValue("slug")
+	if !content.ValidLang(lang) || !content.ValidSection(section) || !content.ValidSlug(slug) {
+		s.notFound(w, r, fallbackLang(lang))
+		return
+	}
+	topic, ok := s.store.Get(lang, section, slug)
+	if !ok {
+		s.notFound(w, r, lang)
+		return
+	}
+	sec, _ := s.store.Section(lang, section)
+	setLangCookie(w, lang)
+	prev, next := s.store.Neighbors(lang, section, slug)
 	t := topic
 	p := page{
 		Lang:      lang,
 		OtherLang: otherLang(lang),
 		HomeURL:   "/" + lang + "/",
-		SelfURL:   "/" + lang + "/" + slug,
-		AltURL:    "/" + otherLang(lang) + "/" + slug,
+		SelfURL:   "/" + lang + "/" + section + "/" + slug,
+		AltURL:    "/" + otherLang(lang) + "/" + section + "/" + slug,
 		UI:        uiFor(lang),
+		Section:   &sec,
 		Topic:     &t,
 		Prev:      prev,
 		Next:      next,
 	}
-	if _, exists := s.store.Get(p.OtherLang, slug); !exists {
-		p.AltURL = "/" + p.OtherLang + "/"
+	if _, exists := s.store.Get(p.OtherLang, section, slug); !exists {
+		if s.store.HasSection(p.OtherLang, section) {
+			p.AltURL = "/" + p.OtherLang + "/" + section + "/"
+		} else {
+			p.AltURL = "/" + p.OtherLang + "/"
+		}
 	}
 	s.render(w, "topic", p, http.StatusOK)
+}
+
+func (s *Server) legacy(w http.ResponseWriter, r *http.Request) {
+	lang := langFromPath(r)
+	name := r.PathValue("name")
+	if !content.ValidLang(lang) {
+		s.notFound(w, r, "en")
+		return
+	}
+	if content.ValidSection(name) && s.store.HasSection(lang, name) {
+		http.Redirect(w, r, "/"+lang+"/"+name+"/", http.StatusMovedPermanently)
+		return
+	}
+	if topic, ok := s.store.FindSlug(lang, name); ok {
+		http.Redirect(w, r, "/"+lang+"/"+topic.Section+"/"+topic.Slug, http.StatusMovedPermanently)
+		return
+	}
+	s.notFound(w, r, lang)
 }
 
 func (s *Server) notFound(w http.ResponseWriter, r *http.Request, lang string) {

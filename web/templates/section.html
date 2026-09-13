@@ -1,0 +1,28 @@
+{{define "section"}}
+{{template "head" .}}
+<main id="main" class="wrap">
+  <p class="crumb"><a href="{{.HomeURL}}">{{.UI.Sections}}</a></p>
+  <section class="hero">
+    <p class="eyebrow">{{.UI.SiteName}}</p>
+    <h1>{{.Section.Title}}</h1>
+    {{if .Section.Tagline}}<p class="lede">{{.Section.Tagline}}</p>{{end}}
+    <p class="meta">{{len .Topics}} {{.UI.TopicsCount}}</p>
+  </section>
+
+  <ol class="toc">
+    {{range .Topics}}
+    <li class="toc__item">
+      <a class="toc__link" href="/{{$.Lang}}/{{.Section}}/{{.Slug}}">
+        <span class="toc__num">{{if .Order}}{{.Order}}{{else}}–{{end}}</span>
+        <span class="toc__body">
+          <span class="toc__title">{{.Title}}</span>
+          {{if .Excerpt}}<span class="toc__excerpt">{{.Excerpt}}</span>{{end}}
+        </span>
+        <span class="toc__cta">{{$.UI.Read}}</span>
+      </a>
+    </li>
+    {{end}}
+  </ol>
+</main>
+{{template "foot" .}}
+{{end}}

@@ -1,0 +1,41 @@
+{{define "topic"}}
+{{template "head" .}}
+<main id="main" class="wrap wrap--topic">
+  <p class="crumb"><a href="{{.HomeURL}}">{{.UI.Home}}</a></p>
+
+  <div class="topic">
+    {{if .Topic.Headings}}
+    <aside class="rail" aria-label="{{.UI.OnThisPage}}">
+      <p class="rail__title">{{.UI.OnThisPage}}</p>
+      <ol class="rail__list">
+        {{range .Topic.Headings}}
+        <li><a href="#{{.ID}}">{{.Text}}</a></li>
+        {{end}}
+      </ol>
+    </aside>
+    {{end}}
+
+    <article class="doc">
+      {{.Topic.HTML}}
+    </article>
+  </div>
+
+  <nav class="pager" aria-label="{{.UI.Contents}}">
+    {{if .Prev}}
+    <a class="pager__link" href="/{{.Lang}}/{{.Prev.Slug}}">
+      <span>{{.UI.Previous}}</span>
+      <strong>{{.Prev.Title}}</strong>
+    </a>
+    {{else}}
+    <span class="pager__link is-empty"></span>
+    {{end}}
+    {{if .Next}}
+    <a class="pager__link pager__link--next" href="/{{.Lang}}/{{.Next.Slug}}">
+      <span>{{.UI.Next}}</span>
+      <strong>{{.Next.Title}}</strong>
+    </a>
+    {{end}}
+  </nav>
+</main>
+{{template "foot" .}}
+{{end}}

@@ -1,0 +1,6 @@
+*.exe
+*.exe~
+bin/
+dist/
+tasks.md
+TOPICS.md

@@ -1,0 +1,12 @@
+{{define "notfound"}}
+{{template "head" .}}
+<main id="main" class="wrap">
+  <section class="hero">
+    <p class="eyebrow">404</p>
+    <h1>{{.UI.NotFound}}</h1>
+    <p class="lede">{{.UI.NotFoundBody}}</p>
+    <p><a class="btn btn--accent" href="{{.HomeURL}}">{{.UI.BackHome}}</a></p>
+  </section>
+</main>
+{{template "foot" .}}
+{{end}}

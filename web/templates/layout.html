@@ -1,0 +1,47 @@
+{{define "head"}}
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{{if .Topic}}{{.Topic.Title}} — {{end}}{{.UI.SiteName}}</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("learngo-theme");
+        if (t !== "light" && t !== "dark") {
+          t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <a class="skip" href="#main">{{.UI.Contents}}</a>
+  <header class="top">
+    <div class="top__bar">
+      <a class="brand" href="{{.HomeURL}}">{{.UI.SiteName}}</a>
+      <nav class="controls" aria-label="{{.UI.Language}}">
+        <a class="btn btn--ghost{{if eq .Lang "en"}} is-on{{end}}" href="{{if eq .Lang "en"}}{{.SelfURL}}{{else}}{{.AltURL}}{{end}}" hreflang="en" lang="en">EN</a>
+        <a class="btn btn--ghost{{if eq .Lang "ru"}} is-on{{end}}" href="{{if eq .Lang "ru"}}{{.SelfURL}}{{else}}{{.AltURL}}{{end}}" hreflang="ru" lang="ru">RU</a>
+        <button type="button" class="btn btn--accent" id="theme-toggle" aria-pressed="false" data-label-light="{{.UI.ThemeLight}}" data-label-dark="{{.UI.ThemeDark}}">
+          <span data-theme-label>{{.UI.ThemeDark}}</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+{{end}}
+
+{{define "foot"}}
+  <footer class="foot">
+    <p>{{.UI.SiteName}}</p>
+  </footer>
+  <script src="/static/js/app.js" defer></script>
+</body>
+</html>
+{{end}}

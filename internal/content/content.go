@@ -35,6 +35,7 @@ type Heading struct {
 
 // Topic is one handbook page loaded from a Markdown file.
 type Topic struct {
+	Section  string
 	Slug     string
 	Order    int
 	Title    string
@@ -46,12 +47,12 @@ type Topic struct {
 
 const contentDir = "common"
 
-// Store holds handbook pages from common/en and common/ru.
+// Store holds handbook pages from common/{lang}/{section}.
 type Store struct {
 	mu     sync.RWMutex
 	root   string
 	md     goldmark.Markdown
-	topics map[string]map[string]Topic // lang -> slug -> topic
+	topics map[string]map[string]map[string]Topic // lang -> section -> slug
 	mtime  map[string]time.Time
 }
 
@@ -97,7 +98,7 @@ func isContentRoot(dir string) bool {
 	return err1 == nil && err2 == nil && en.IsDir() && ru.IsDir()
 }
 
-// NewStore loads all Markdown files from common/en and common/ru.
+// NewStore loads Markdown files from common/{lang}/{section}.
 func NewStore(root string) (*Store, error) {
 	s := &Store{
 		root: root,
@@ -106,7 +107,7 @@ func NewStore(root string) (*Store, error) {
 			goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 			goldmark.WithRendererOptions(html.WithHardWraps()),
 		),
-		topics: map[string]map[string]Topic{
+		topics: map[string]map[string]map[string]Topic{
 			"en": {},
 			"ru": {},
 		},
@@ -138,32 +139,46 @@ func ValidSlug(slug string) bool {
 }
 
 func (s *Store) reload() error {
-	next := map[string]map[string]Topic{
+	next := map[string]map[string]map[string]Topic{
 		"en": {},
 		"ru": {},
 	}
 	nextM := map[string]time.Time{}
 	for _, lang := range []string{"en", "ru"} {
-		dir := filepath.Join(s.root, langDir(lang))
-		entries, err := os.ReadDir(dir)
+		langPath := filepath.Join(s.root, langDir(lang))
+		entries, err := os.ReadDir(langPath)
 		if err != nil {
 			return err
 		}
 		for _, e := range entries {
-			if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".md") {
+			if !e.IsDir() || !ValidSection(e.Name()) {
 				continue
 			}
-			slug := strings.TrimSuffix(e.Name(), filepath.Ext(e.Name()))
-			if !ValidSlug(slug) {
-				continue
-			}
-			path := filepath.Join(dir, e.Name())
-			topic, err := s.parseFile(slug, path)
+			section := e.Name()
+			secPath := filepath.Join(langPath, section)
+			files, err := os.ReadDir(secPath)
 			if err != nil {
-				return fmt.Errorf("%s: %w", path, err)
+				return err
 			}
-			next[lang][slug] = topic
-			nextM[path] = topic.ModTime
+			if next[lang][section] == nil {
+				next[lang][section] = map[string]Topic{}
+			}
+			for _, f := range files {
+				if f.IsDir() || !strings.HasSuffix(strings.ToLower(f.Name()), ".md") {
+					continue
+				}
+				slug := strings.TrimSuffix(f.Name(), filepath.Ext(f.Name()))
+				if !ValidSlug(slug) {
+					continue
+				}
+				path := filepath.Join(secPath, f.Name())
+				topic, err := s.parseFile(section, slug, path)
+				if err != nil {
+					return fmt.Errorf("%s: %w", path, err)
+				}
+				next[lang][section][slug] = topic
+				nextM[path] = topic.ModTime
+			}
 		}
 	}
 	s.mu.Lock()
@@ -173,7 +188,7 @@ func (s *Store) reload() error {
 	return nil
 }
 
-func (s *Store) parseFile(slug, path string) (Topic, error) {
+func (s *Store) parseFile(section, slug, path string) (Topic, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return Topic{}, err
@@ -196,6 +211,7 @@ func (s *Store) parseFile(slug, path string) (Topic, error) {
 	}
 
 	return Topic{
+		Section:  section,
 		Slug:     slug,
 		Order:    orderFromSlug(slug),
 		Title:    title,
@@ -304,24 +320,37 @@ func plainText(n ast.Node, raw []byte) string {
 func (s *Store) refreshIfChanged() {
 	changed := false
 	for _, lang := range []string{"en", "ru"} {
-		dir := filepath.Join(s.root, langDir(lang))
-		entries, err := os.ReadDir(dir)
+		langPath := filepath.Join(s.root, langDir(lang))
+		entries, err := os.ReadDir(langPath)
 		if err != nil {
 			return
 		}
 		s.mu.RLock()
 		for _, e := range entries {
-			if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".md") {
+			if !e.IsDir() || !ValidSection(e.Name()) {
 				continue
 			}
-			path := filepath.Join(dir, e.Name())
-			info, err := os.Stat(path)
+			secPath := filepath.Join(langPath, e.Name())
+			files, err := os.ReadDir(secPath)
 			if err != nil {
 				continue
 			}
-			prev, ok := s.mtime[path]
-			if !ok || !info.ModTime().Equal(prev) {
-				changed = true
+			for _, f := range files {
+				if f.IsDir() || !strings.HasSuffix(strings.ToLower(f.Name()), ".md") {
+					continue
+				}
+				path := filepath.Join(secPath, f.Name())
+				info, err := os.Stat(path)
+				if err != nil {
+					continue
+				}
+				prev, ok := s.mtime[path]
+				if !ok || !info.ModTime().Equal(prev) {
+					changed = true
+					break
+				}
+			}
+			if changed {
 				break
 			}
 		}
@@ -335,12 +364,52 @@ func (s *Store) refreshIfChanged() {
 	}
 }
 
-// List returns topics for a language, sorted by order.
-func (s *Store) List(lang string) []Topic {
+// HasSection reports whether a section exists for the language.
+func (s *Store) HasSection(lang, section string) bool {
+	s.refreshIfChanged()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	_, ok := s.topics[lang][section]
+	return ok
+}
+
+// ListSections returns subject folders for a language.
+func (s *Store) ListSections(lang string) []Section {
 	s.refreshIfChanged()
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	src := s.topics[lang]
+	out := make([]Section, 0, len(src))
+	for slug, topics := range src {
+		out = append(out, infoForSection(lang, slug, len(topics)))
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Order == out[j].Order {
+			return out[i].Slug < out[j].Slug
+		}
+		return out[i].Order < out[j].Order
+	})
+	return out
+}
+
+// Section returns metadata for one section.
+func (s *Store) Section(lang, section string) (Section, bool) {
+	s.refreshIfChanged()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	topics, ok := s.topics[lang][section]
+	if !ok {
+		return Section{}, false
+	}
+	return infoForSection(lang, section, len(topics)), true
+}
+
+// List returns topics for a language and section, sorted by order.
+func (s *Store) List(lang, section string) []Topic {
+	s.refreshIfChanged()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	src := s.topics[lang][section]
 	out := make([]Topic, 0, len(src))
 	for _, t := range src {
 		out = append(out, t)
@@ -354,18 +423,31 @@ func (s *Store) List(lang string) []Topic {
 	return out
 }
 
-// Get returns one topic by language and slug.
-func (s *Store) Get(lang, slug string) (Topic, bool) {
+// Get returns one topic by language, section, and slug.
+func (s *Store) Get(lang, section, slug string) (Topic, bool) {
 	s.refreshIfChanged()
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	t, ok := s.topics[lang][slug]
+	t, ok := s.topics[lang][section][slug]
 	return t, ok
 }
 
-// Neighbors returns the previous and next topics in the same language.
-func (s *Store) Neighbors(lang, slug string) (prev, next *Topic) {
-	list := s.List(lang)
+// FindSlug looks up a topic slug in any section for redirects.
+func (s *Store) FindSlug(lang, slug string) (Topic, bool) {
+	s.refreshIfChanged()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, topics := range s.topics[lang] {
+		if t, ok := topics[slug]; ok {
+			return t, true
+		}
+	}
+	return Topic{}, false
+}
+
+// Neighbors returns the previous and next topics in the same section.
+func (s *Store) Neighbors(lang, section, slug string) (prev, next *Topic) {
+	list := s.List(lang, section)
 	for i, t := range list {
 		if t.Slug != slug {
 			continue

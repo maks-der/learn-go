@@ -3,4 +3,4 @@
 bin/
 dist/
 tasks.md
-TOPICS.md
+*.topics.md

@@ -1,7 +1,13 @@
 {{define "topic"}}
 {{template "head" .}}
 <main id="main" class="wrap wrap--topic">
-  <p class="crumb"><a href="{{.HomeURL}}">{{.UI.Home}}</a></p>
+  <p class="crumb">
+    <a href="{{.HomeURL}}">{{.UI.Sections}}</a>
+    {{if .Section}}
+    <span class="crumb__sep" aria-hidden="true">/</span>
+    <a href="/{{.Lang}}/{{.Section.Slug}}/">{{.Section.Title}}</a>
+    {{end}}
+  </p>
 
   <div class="topic">
     {{if .Topic.Headings}}
@@ -22,7 +28,7 @@
 
   <nav class="pager" aria-label="{{.UI.Contents}}">
     {{if .Prev}}
-    <a class="pager__link" href="/{{.Lang}}/{{.Prev.Slug}}">
+    <a class="pager__link" href="/{{.Lang}}/{{.Prev.Section}}/{{.Prev.Slug}}">
       <span>{{.UI.Previous}}</span>
       <strong>{{.Prev.Title}}</strong>
     </a>
@@ -30,7 +36,7 @@
     <span class="pager__link is-empty"></span>
     {{end}}
     {{if .Next}}
-    <a class="pager__link pager__link--next" href="/{{.Lang}}/{{.Next.Slug}}">
+    <a class="pager__link pager__link--next" href="/{{.Lang}}/{{.Next.Section}}/{{.Next.Slug}}">
       <span>{{.UI.Next}}</span>
       <strong>{{.Next.Title}}</strong>
     </a>

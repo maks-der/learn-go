@@ -277,6 +277,16 @@ body {
   font-weight: 600;
 }
 
+.crumb__sep {
+  margin: 0 0.45rem;
+  color: var(--muted);
+}
+
+.toc--sections .toc__num--section {
+  text-transform: uppercase;
+  min-width: 2.4rem;
+}
+
 .topic {
   display: block;
 }

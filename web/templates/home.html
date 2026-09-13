@@ -3,21 +3,21 @@
 <main id="main" class="wrap">
   <section class="hero">
     <p class="eyebrow">{{.UI.SiteName}}</p>
-    <h1>{{.UI.Contents}}</h1>
+    <h1>{{.UI.Sections}}</h1>
     <p class="lede">{{.UI.Tagline}}</p>
-    <p class="meta">{{len .Topics}} {{.UI.TopicsCount}}</p>
+    <p class="meta">{{len .Sections}} {{.UI.SectionsCount}}</p>
   </section>
 
-  <ol class="toc">
-    {{range .Topics}}
+  <ol class="toc toc--sections">
+    {{range .Sections}}
     <li class="toc__item">
-      <a class="toc__link" href="/{{$.Lang}}/{{.Slug}}">
-        <span class="toc__num">{{if .Order}}{{.Order}}{{else}}–{{end}}</span>
+      <a class="toc__link" href="/{{$.Lang}}/{{.Slug}}/">
+        <span class="toc__num toc__num--section">{{.Slug}}</span>
         <span class="toc__body">
           <span class="toc__title">{{.Title}}</span>
-          {{if .Excerpt}}<span class="toc__excerpt">{{.Excerpt}}</span>{{end}}
+          {{if .Tagline}}<span class="toc__excerpt">{{.Tagline}}</span>{{end}}
         </span>
-        <span class="toc__cta">{{$.UI.Read}}</span>
+        <span class="toc__cta">{{.Count}} {{$.UI.TopicsCount}}</span>
       </a>
     </li>
     {{end}}

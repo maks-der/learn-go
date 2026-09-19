@@ -2,13 +2,21 @@
   var root = document.documentElement;
   var button = document.getElementById("theme-toggle");
   if (button) {
+    var themes = ["light", "dark", "contrast-light", "contrast-dark"];
     var labels = {
       light: button.getAttribute("data-label-light") || "Light",
       dark: button.getAttribute("data-label-dark") || "Dark",
+      "contrast-light": button.getAttribute("data-label-contrast-light") || "HC Light",
+      "contrast-dark": button.getAttribute("data-label-contrast-dark") || "HC Dark",
     };
 
     function currentTheme() {
-      return root.getAttribute("data-theme") === "dark" ? "dark" : "light";
+      var t = root.getAttribute("data-theme");
+      return themes.indexOf(t) >= 0 ? t : "light";
+    }
+
+    function nextTheme(theme) {
+      return themes[(themes.indexOf(theme) + 1) % themes.length];
     }
 
     function apply(theme) {
@@ -16,17 +24,17 @@
       try {
         localStorage.setItem("learngo-theme", theme);
       } catch (e) {}
-      var next = theme === "dark" ? "light" : "dark";
+      var next = nextTheme(theme);
       var label = button.querySelector("[data-theme-label]");
       if (label) {
-        label.textContent = next === "dark" ? labels.dark : labels.light;
+        label.textContent = labels[next];
       }
-      button.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
+      button.setAttribute("aria-label", labels[next]);
     }
 
     apply(currentTheme());
     button.addEventListener("click", function () {
-      apply(currentTheme() === "dark" ? "light" : "dark");
+      apply(nextTheme(currentTheme()));
     });
   }
 

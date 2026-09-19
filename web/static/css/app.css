@@ -25,6 +25,59 @@
   --link: #9bb4d4;
 }
 
+[data-theme="contrast-light"] {
+  --bg: #ffffff;
+  --ink: #000000;
+  --muted: #000000;
+  --paper: #ffffff;
+  --line: #000000;
+  --accent: #000000;
+  --accent-ink: #ffffff;
+  --code: #ffffff;
+  --shadow: 5px 5px 0 #000000;
+  --link: #000000;
+}
+
+[data-theme="contrast-dark"] {
+  --bg: #000000;
+  --ink: #ffffff;
+  --muted: #ffffff;
+  --paper: #000000;
+  --line: #ffffff;
+  --accent: #ffffff;
+  --accent-ink: #000000;
+  --code: #000000;
+  --shadow: 5px 5px 0 #ffffff;
+  --link: #ffffff;
+}
+
+:root,
+[data-theme="light"],
+[data-theme="contrast-light"] {
+  color-scheme: light;
+}
+
+[data-theme="dark"],
+[data-theme="contrast-dark"] {
+  color-scheme: dark;
+}
+
+[data-theme="contrast-light"] ::selection,
+[data-theme="contrast-dark"] ::selection {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+[data-theme="contrast-light"] .doc a,
+[data-theme="contrast-dark"] .doc a,
+[data-theme="contrast-light"] .crumb a,
+[data-theme="contrast-dark"] .crumb a,
+[data-theme="contrast-light"] .rail__list a,
+[data-theme="contrast-dark"] .rail__list a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -605,11 +658,19 @@ body {
     line-height: 1;
   }
 
-  #theme-toggle[aria-pressed="false"] .btn__mark::before {
+  [data-theme="light"] #theme-toggle .btn__mark::before {
     content: "☾";
   }
 
-  #theme-toggle[aria-pressed="true"] .btn__mark::before {
+  [data-theme="dark"] #theme-toggle .btn__mark::before {
+    content: "▢";
+  }
+
+  [data-theme="contrast-light"] #theme-toggle .btn__mark::before {
+    content: "■";
+  }
+
+  [data-theme="contrast-dark"] #theme-toggle .btn__mark::before {
     content: "☀";
   }
 
